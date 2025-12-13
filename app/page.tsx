@@ -1,65 +1,133 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
+import React, { useState, useEffect } from 'react';
+import TopBar from '@/components/TopBar';
+import BottomNavigation from '@/components/BottomNavigation';
+import TreeTab from '@/components/tabs/TreeTab';
+import SearchTab from '@/components/tabs/SearchTab';
+import SettingsTab from '@/components/tabs/SettingsTab';
+import AboutTab from '@/components/tabs/AboutTab';
+import Toast from '@/components/Toast';
+import { useToast } from '@/lib/hooks';
+import { useSwipe } from '@/lib/swipe-hooks';
+
+export default function App() {
+  const [activeTab, setActiveTab] = useState('home');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const { toast, showToast, hideToast } = useToast();
+
+  const tabs = ['home', 'search', 'config', 'about'];
+  
+  const handleSwipeLeft = () => {
+    const currentIndex = tabs.indexOf(activeTab);
+    if (currentIndex < tabs.length - 1) {
+      setActiveTab(tabs[currentIndex + 1]);
+    }
+  };
+
+  const handleSwipeRight = () => {
+    const currentIndex = tabs.indexOf(activeTab);
+    if (currentIndex > 0) {
+      setActiveTab(tabs[currentIndex - 1]);
+    }
+  };
+
+  const swipeHandlers = useSwipe(handleSwipeLeft, handleSwipeRight);
+
+  // Handle system preference and localStorage on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'dark') {
+      setIsDarkMode(true);
+    } else if (savedTheme === 'light') {
+      setIsDarkMode(false);
+    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      setIsDarkMode(true);
+    }
+  }, []);
+
+  // Persist theme changes
+  useEffect(() => {
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Tab switching with number keys (1-4)
+      if (e.key >= '1' && e.key <= '4') {
+        const tabs = ['home', 'search', 'config', 'about'];
+        setActiveTab(tabs[parseInt(e.key) - 1]);
+      }
+      
+      // Theme toggle with 't' key
+      if (e.key === 't' || e.key === 'T') {
+        setIsDarkMode(prev => !prev);
+        showToast({ 
+          type: 'info', 
+          message: `Theme switched to ${!isDarkMode ? 'dark' : 'light'} mode` 
+        });
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyPress);
+    return () => window.removeEventListener('keydown', handleKeyPress);
+  }, [isDarkMode, showToast]);
+
+  const toggleTheme = () => {
+    setIsDarkMode(!isDarkMode);
+    showToast({ 
+      type: 'success', 
+      message: `Theme switched to ${!isDarkMode ? 'dark' : 'light'} mode` 
+    });
+  };
+
+  // Render logic
+  const renderContent = () => {
+    switch(activeTab) {
+      case 'home': return <TreeTab />;
+      case 'search': return <SearchTab />;
+      case 'config': return <SettingsTab />;
+      case 'about': return <AboutTab />;
+      default: return <TreeTab />;
+    }
+  };
+
+  const getTitle = () => {
+    switch(activeTab) {
+      case 'home': return 'The Pendelton Line';
+      case 'search': return 'Find Relative';
+      case 'config': return 'Configuration';
+      case 'about': return 'About Creator';
+      default: return 'App';
+    }
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+    <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'dark bg-slate-950' : 'bg-slate-50'}`}>
+      
+      {/* Dynamic Top Bar */}
+      <TopBar 
+        title={getTitle()} 
+        isDarkMode={isDarkMode}
+        toggleTheme={toggleTheme}
+      />
+
+      {/* Main Content Area - Scrollable with Swipe Support */}
+      <main 
+        className="max-w-md mx-auto min-h-screen bg-white dark:bg-slate-900 shadow-2xl overflow-hidden relative border-x border-slate-200 dark:border-slate-800"
+        {...swipeHandlers}
+      >
+        <div className="animate-in fade-in slide-in-from-right-4 duration-300" key={activeTab}>
+          {renderContent()}
         </div>
       </main>
+
+      {/* Bottom Navigation */}
+      <BottomNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
+
+      {/* Toast Notifications */}
+      {toast && <Toast {...toast} onClose={hideToast} />}
     </div>
   );
 }

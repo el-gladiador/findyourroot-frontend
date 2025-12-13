@@ -1,36 +1,83 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# FindYourRoot - Family Tree Application
+
+A beautiful, modern family tree application built with Next.js 16, React, TypeScript, and Tailwind CSS.
+
+## ✨ Features
+
+### Core Functionality
+- 🌳 **Interactive Family Tree** - Visual representation with clickable nodes
+- 🔍 **Advanced Search** - Real-time search with debouncing and advanced filtering
+- 👤 **Person Details** - Beautiful modal dialogs with comprehensive information
+- 💾 **Data Export** - Export in JSON, CSV, or PDF formats
+- 🔗 **Share Functionality** - Share via native Web Share API or clipboard
+
+### User Experience
+- 🌓 **Dark/Light Mode** - Toggle with automatic system preference detection
+- ⌨️ **Keyboard Shortcuts** - Navigate quickly (1-4 for tabs, T for theme)
+- 👆 **Swipe Gestures** - Navigate between tabs on mobile
+- 🔔 **Toast Notifications** - Real-time feedback for actions
+- 📱 **Responsive Design** - Works seamlessly on all devices
+
+### Settings & Preferences
+- 💾 **Persistent Settings** - All preferences saved to localStorage
+- 🔒 **Privacy Controls** - Toggle privacy, notifications, offline access
+- 🎨 **Theme Persistence** - Remembered across sessions
+
+## 🛠️ Tech Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS v4
+- **Icons**: Lucide React
+- **State Management**: React Hooks
 
 ## Getting Started
 
-First, run the development server:
+### Installation
 
 ```bash
+# Install dependencies
+npm install
+
+# Start development server
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open [http://localhost:3000](http://localhost:3000) to view the app.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Build for Production
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm run build
+npm start
+```
 
-## Learn More
+## Project Structure
 
-To learn more about Next.js, take a look at the following resources:
+```
+frontend/
+├── app/                      # Next.js app directory
+│   ├── layout.tsx           # Root layout with PWA configuration
+│   ├── page.tsx             # Main application page
+│   └── globals.css          # Global styles
+├── components/              # React components
+│   ├── BottomNavigation.tsx # Bottom tab navigation
+│   ├── TabContent.tsx       # Tab content router
+│   └── tabs/                # Individual tab components
+├── lib/                     # Utilities and configuration
+│   ├── types.ts            # TypeScript type definitions
+│   ├── data.ts             # Family tree data
+│   └── store.ts            # Zustand state management
+└── public/                  # Static assets
+    └── manifest.json        # PWA manifest
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Customization
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+### Adding Family Members
 
-## Deploy on Vercel
+Edit `lib/data.ts` to modify the family tree structure.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## License
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+MIT License
