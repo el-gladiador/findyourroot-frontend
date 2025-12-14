@@ -7,6 +7,7 @@ export interface Person {
   avatar: string;
   bio: string;
   children: string[];
+  created_by?: string; // User ID of creator
 }
 
 export interface User {
