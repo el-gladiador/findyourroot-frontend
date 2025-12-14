@@ -65,8 +65,8 @@ export const useAppStore = create<AppState>()(
         return { success: false, error: response.error || 'Login failed' };
       },
 
-      register: async (email: string, password: string) => {
-        const response = await ApiClient.register(email, password);
+      register: async (email: string, password: string, treeName: string, fatherName: string, birthYear: string) => {
+        const response = await ApiClient.register(email, password, treeName, fatherName, birthYear);
         
         if (response.data) {
           const { token, user } = response.data;

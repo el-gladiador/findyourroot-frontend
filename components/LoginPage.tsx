@@ -10,8 +10,12 @@ interface LoginPageProps {
 export default function LoginPage({ onSuccess }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [treeName, setTreeName] = useState('Batur');
+  const [fatherName, setFatherName] = useState('');
+  const [birthYear, setBirthYear] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
   const login = useAppStore((state) => state.login);
   const register = useAppStore((state) => state.register);
@@ -19,15 +23,21 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setSuccessMessage('');
     setIsLoading(true);
 
     try {
       const result = isRegistering 
-        ? await register(email, password)
+        ? await register(email, password, treeName, fatherName, birthYear)
         : await login(email, password);
       
       if (result.success) {
-        onSuccess?.();
+        if (isRegistering) {
+          setSuccessMessage('Account created successfully! Redirecting...');
+          setTimeout(() => onSuccess?.(), 1500);
+        } else {
+          onSuccess?.();
+        }
       } else {
         setError(result.error || (isRegistering ? 'Registration failed' : 'Login failed. Please check your credentials.'));
       }
@@ -112,6 +122,75 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
                 placeholder="Enter your password"
               />
             </div>
+
+            {isRegistering && (
+              <>
+                <div>
+                  <label
+                    htmlFor="treeName"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
+                    Family Tree
+                  </label>
+                  <input
+                    id="treeName"
+                    name="treeName"
+                    type="text"
+                    required
+                    value={treeName}
+                    disabled
+                    className="appearance-none relative block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 text-gray-500 dark:text-gray-400 rounded-lg bg-gray-100 dark:bg-gray-600 cursor-not-allowed"
+                    placeholder="Batur"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Currently only Batur family tree is available</p>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="fatherName"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
+                    Father's Name
+                  </label>
+                  <input
+                    id="fatherName"
+                    name="fatherName"
+                    type="text"
+                    required
+                    value={fatherName}
+                    onChange={(e) => setFatherName(e.target.value)}
+                    className="appearance-none relative block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 transition-colors"
+                    placeholder="Enter your father's full name"
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="birthYear"
+                    className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                  >
+                    Your Birth Year
+                  </label>
+                  <input
+                    id="birthYear"
+                    name="birthYear"
+                    type="text"
+                    required
+                    value={birthYear}
+                    onChange={(e) => setBirthYear(e.target.value)}
+                    className="appearance-none relative block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 transition-colors"
+                    placeholder="e.g., 1990"
+                  />
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">We'll verify you're part of the Batur family tree</p>
+                </div>
+              </>
+            )}
+
+            {successMessage && (
+              <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 text-green-800 dark:text-green-200 px-4 py-3 rounded-lg text-sm">
+                {successMessage}
+              </div>
+            )}
 
             <button
               type="submit"

@@ -132,10 +132,22 @@ export class ApiClient {
     });
   }
 
-  static async register(email: string, password: string): Promise<ApiResponse<LoginResponse>> {
+  static async register(
+    email: string, 
+    password: string, 
+    treeName: string, 
+    fatherName: string, 
+    birthYear: string
+  ): Promise<ApiResponse<LoginResponse>> {
     return this.request<LoginResponse>('/api/v1/auth/register', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ 
+        email, 
+        password, 
+        tree_name: treeName, 
+        father_name: fatherName, 
+        birth_year: birthYear 
+      }),
     });
   }
 

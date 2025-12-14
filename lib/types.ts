@@ -15,6 +15,8 @@ export interface User {
   email: string;
   role: 'viewer' | 'editor' | 'admin';
   is_admin: boolean;
+  tree_name?: string;
+  is_verified?: boolean;
 }
 
 export interface PermissionRequest {
