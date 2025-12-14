@@ -1,14 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Shield, Smartphone, ChevronRight, Download, Share2, LogOut } from 'lucide-react';
+import { Bell, Shield, Smartphone, ChevronRight, Download, Share2, LogOut, UserPlus } from 'lucide-react';
 import ExportModal from '@/components/ExportModal';
 import { useAppStore } from '@/lib/store';
 import { exportToJSON, exportToCSV, exportToPDF, shareData } from '@/lib/export';
+import { ApiClient } from '@/lib/api';
 
 const SettingsTab = () => {
   const [notifications, setNotifications] = useState(true);
   const [privacyMode, setPrivacyMode] = useState(false);
   const [offlineAccess, setOfflineAccess] = useState(true);
   const [showExportModal, setShowExportModal] = useState(false);
+  const [showRequestModal, setShowRequestModal] = useState(false);
+  const [requestMessage, setRequestMessage] = useState('');
+  const [requestRole, setRequestRole] = useState<'editor' | 'admin'>('editor');
+  const [requestStatus, setRequestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
+  const [statusMessage, setStatusMessage] = useState('');
   
   const familyData = useAppStore((state) => state.familyData);
   const user = useAppStore((state) => state.user);
@@ -69,6 +75,24 @@ const SettingsTab = () => {
   const handleLogout = () => {
     if (confirm('Are you sure you want to sign out?')) {
       logout();
+    }
+  };
+
+  const handleRequestPermission = async () => {
+    setRequestStatus('loading');
+    const response = await ApiClient.requestPermission(requestRole, requestMessage);
+    
+    if (response.error) {
+      setRequestStatus('error');
+      setStatusMessage(response.error);
+    } else {
+      setRequestStatus('success');
+      setStatusMessage('Permission request sent! An administrator will review your request.');
+      setTimeout(() => {
+        setShowRequestModal(false);
+        setRequestStatus('idle');
+        setRequestMessage('');
+      }, 2000);
     }
   };
 
@@ -163,10 +187,35 @@ const SettingsTab = () => {
                 </div>
                 <div>
                   <p className="font-medium text-slate-800 dark:text-white">{user?.email}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">Administrator</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">
+                    {user?.role || 'viewer'}
+                    {user?.role === 'admin' && ' (Full Access)'}
+                    {user?.role === 'editor' && ' (Can Edit)'}
+                    {user?.role === 'viewer' && ' (View Only)'}
+                  </p>
                 </div>
               </div>
             </div>
+            
+            {/* Request Permissions Button - Only show for viewers */}
+            {user?.role === 'viewer' && (
+              <button 
+                onClick={() => setShowRequestModal(true)}
+                className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
+                    <UserPlus size={16} />
+                  </div>
+                  <div>
+                    <span className="font-medium text-slate-800 dark:text-white block">Request Permissions</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Ask admin for edit access</span>
+                  </div>
+                </div>
+                <ChevronRight size={16} className="text-slate-400" />
+              </button>
+            )}
+            
             <button 
               onClick={handleLogout}
               className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
@@ -189,6 +238,83 @@ const SettingsTab = () => {
             onClose={() => setShowExportModal(false)}
             onExport={handleExport}
           />
+        )}
+
+        {/* Request Permission Modal */}
+        {showRequestModal && (
+          <div 
+            className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={() => setShowRequestModal(false)}
+          >
+            <div 
+              className="bg-white dark:bg-slate-800 w-full max-w-md mx-4 rounded-2xl shadow-2xl animate-in slide-in-from-bottom-8 duration-500"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white">Request Permissions</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Ask the administrator for elevated access</p>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Permission Level
+                  </label>
+                  <select
+                    value={requestRole}
+                    onChange={(e) => setRequestRole(e.target.value as 'editor' | 'admin')}
+                    className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                  >
+                    <option value="editor">Editor (Can add/edit people)</option>
+                    <option value="admin">Admin (Full access)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Message (Optional)
+                  </label>
+                  <textarea
+                    value={requestMessage}
+                    onChange={(e) => setRequestMessage(e.target.value)}
+                    placeholder="Why do you need this permission?"
+                    rows={3}
+                    className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                  />
+                </div>
+
+                {statusMessage && (
+                  <div className={`p-3 rounded-lg ${
+                    requestStatus === 'success' 
+                      ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800' 
+                      : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800'
+                  }`}>
+                    <p className="text-sm">{statusMessage}</p>
+                  </div>
+                )}
+              </div>
+
+              <div className="p-6 border-t border-slate-100 dark:border-slate-700 flex gap-3">
+                <button
+                  onClick={() => {
+                    setShowRequestModal(false);
+                    setRequestStatus('idle');
+                    setStatusMessage('');
+                  }}
+                  className="flex-1 px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleRequestPermission}
+                  disabled={requestStatus === 'loading'}
+                  className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {requestStatus === 'loading' ? 'Sending...' : 'Send Request'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

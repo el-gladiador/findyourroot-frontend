@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { X, MapPin, Calendar, User, Heart, Phone, Mail, Home, Trash2, Edit } from 'lucide-react';
 import { Person } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
@@ -13,6 +13,10 @@ interface PersonModalProps {
 
 const PersonModal: React.FC<PersonModalProps> = ({ person, onClose, onEdit }) => {
   const removePerson = useAppStore((state) => state.removePerson);
+  const user = useAppStore((state) => state.user);
+  const [permissionWarning, setPermissionWarning] = useState<string | null>(null);
+  
+  const canEdit = user?.role === 'editor' || user?.role === 'admin';
 
   // Prevent background scrolling when modal is open
   useEffect(() => {
@@ -23,10 +27,24 @@ const PersonModal: React.FC<PersonModalProps> = ({ person, onClose, onEdit }) =>
   }, []);
 
   const handleDelete = async () => {
+    if (!canEdit) {
+      setPermissionWarning('You need Editor or Admin permissions to delete people from the tree.');
+      setTimeout(() => setPermissionWarning(null), 4000);
+      return;
+    }
     if (confirm(`Are you sure you want to remove ${person.name} from the family tree?`)) {
       await removePerson(person.id);
       onClose();
     }
+  };
+
+  const handleEditClick = () => {
+    if (!canEdit) {
+      setPermissionWarning('You need Editor or Admin permissions to edit people in the tree.');
+      setTimeout(() => setPermissionWarning(null), 4000);
+      return;
+    }
+    onEdit?.();
   };
   return (
     <div 
@@ -114,8 +132,13 @@ const PersonModal: React.FC<PersonModalProps> = ({ person, onClose, onEdit }) =>
           <div className="grid grid-cols-2 gap-2 animate-in fade-in slide-in-from-bottom-4 duration-700 delay-500">
             {onEdit && (
               <button 
-                onClick={onEdit}
-                className="flex items-center justify-center gap-2 p-3 bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 rounded-lg hover:bg-indigo-200 dark:hover:bg-indigo-900/50 transition-colors active:scale-95 font-medium"
+                onClick={handleEditClick}
+                disabled={!canEdit}
+                className={`flex items-center justify-center gap-2 p-3 rounded-lg transition-colors active:scale-95 font-medium ${
+                  canEdit 
+                    ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300 hover:bg-indigo-200 dark:hover:bg-indigo-900/50' 
+                    : 'bg-gray-100 dark:bg-gray-700/30 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-60'
+                }`}
               >
                 <Edit size={18} />
                 <span className="text-sm">Edit</span>
@@ -123,12 +146,24 @@ const PersonModal: React.FC<PersonModalProps> = ({ person, onClose, onEdit }) =>
             )}
             <button 
               onClick={handleDelete}
-              className="flex items-center justify-center gap-2 p-3 bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 rounded-lg hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors active:scale-95 font-medium"
+              disabled={!canEdit}
+              className={`flex items-center justify-center gap-2 p-3 rounded-lg transition-colors active:scale-95 font-medium ${
+                canEdit 
+                  ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50' 
+                  : 'bg-gray-100 dark:bg-gray-700/30 text-gray-400 dark:text-gray-500 cursor-not-allowed opacity-60'
+              }`}
             >
               <Trash2 size={18} />
               <span className="text-sm">Delete</span>
             </button>
           </div>
+
+          {/* Permission Warning */}
+          {permissionWarning && (
+            <div className="mt-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-500 dark:border-amber-600 text-amber-900 dark:text-amber-200 px-4 py-3 rounded-lg text-sm animate-in fade-in slide-in-from-top-2">
+              {permissionWarning}
+            </div>
+          )}
         </div>
       </div>
     </div>

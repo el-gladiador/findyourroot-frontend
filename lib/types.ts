@@ -9,6 +9,24 @@ export interface Person {
   children: string[];
 }
 
+export interface User {
+  id: string;
+  email: string;
+  role: 'viewer' | 'editor' | 'admin';
+  is_admin: boolean;
+}
+
+export interface PermissionRequest {
+  id: string;
+  user_id: string;
+  user_email: string;
+  requested_role: 'editor' | 'admin';
+  message: string;
+  status: 'pending' | 'approved' | 'rejected';
+  created_at: string;
+  updated_at: string;
+}
+
 export interface CreatorInfo {
   name: string;
   role: string;

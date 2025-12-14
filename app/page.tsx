@@ -7,6 +7,7 @@ import TreeTab from '@/components/tabs/TreeTab';
 import SearchTab from '@/components/tabs/SearchTab';
 import SettingsTab from '@/components/tabs/SettingsTab';
 import AboutTab from '@/components/tabs/AboutTab';
+import AdminTab from '@/components/tabs/AdminTab';
 import Toast from '@/components/Toast';
 import SplashScreen from '@/components/SplashScreen';
 import UpdatePrompt from '@/components/UpdatePrompt';
@@ -14,6 +15,7 @@ import InstallPrompt from '@/components/InstallPrompt';
 import LoginPage from '@/components/LoginPage';
 import { useToast } from '@/lib/hooks';
 import { useAppStore } from '@/lib/store';
+import { useRealtimeSync } from '@/lib/realtime-sync';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -24,6 +26,9 @@ export default function App() {
   
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
   const validateAuth = useAppStore((state) => state.validateAuth);
+  
+  // Enable real-time sync (Firestore listeners or polling)
+  useRealtimeSync();
 
   // Validate authentication on mount
   useEffect(() => {
@@ -35,6 +40,33 @@ export default function App() {
     
     checkAuth();
   }, [validateAuth]);
+
+  // Periodic user validation to detect role changes (e.g., admin approval)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    const intervalId = setInterval(async () => {
+      console.log('[Auth] Checking for role updates...');
+      await validateAuth();
+    }, 15000); // Check every 15 seconds
+    
+    return () => clearInterval(intervalId);
+  }, [isAuthenticated, validateAuth]);
+
+  // Validate on tab visibility change (user returns to app)
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        console.log('[Auth] Tab visible, checking for role updates...');
+        await validateAuth();
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, [isAuthenticated, validateAuth]);
 
   // Handle system preference and localStorage on mount
   useEffect(() => {
@@ -108,6 +140,7 @@ export default function App() {
     switch(activeTab) {
       case 'home': return <TreeTab />;
       case 'search': return <SearchTab />;
+      case 'admin': return <AdminTab />;
       case 'config': return <SettingsTab />;
       case 'about': return <AboutTab />;
       default: return <TreeTab />;
@@ -118,6 +151,7 @@ export default function App() {
     switch(activeTab) {
       case 'home': return 'The Pendelton Line';
       case 'search': return 'Find Relative';
+      case 'admin': return 'Admin Panel';
       case 'config': return 'Configuration';
       case 'about': return 'About Creator';
       default: return 'App';

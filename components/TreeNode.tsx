@@ -7,9 +7,10 @@ interface TreeNodeProps {
   isSpouse?: boolean;
   onClick?: () => void;
   onAddChild?: () => void;
+  canEdit?: boolean;
 }
 
-const TreeNode: React.FC<TreeNodeProps> = ({ person, isSpouse = false, onClick, onAddChild }) => (
+const TreeNode: React.FC<TreeNodeProps> = ({ person, isSpouse = false, onClick, onAddChild, canEdit = true }) => (
   <div 
     className={`relative flex flex-col items-center group tree-node-clickable ${isSpouse ? 'mt-4 md:mt-0 md:ml-4' : ''}`}
   >
@@ -29,8 +30,13 @@ const TreeNode: React.FC<TreeNodeProps> = ({ person, isSpouse = false, onClick, 
             e.stopPropagation();
             onAddChild();
           }}
-          className="absolute -right-1 top-0 w-6 h-6 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-lg transition-all hover:scale-110 active:scale-95 tree-node-clickable"
-          title="Add child"
+          disabled={!canEdit}
+          className={`absolute -right-1 top-0 w-6 h-6 rounded-full flex items-center justify-center shadow-lg transition-all tree-node-clickable ${
+            canEdit 
+              ? 'bg-indigo-600 hover:bg-indigo-700 text-white hover:scale-110 active:scale-95' 
+              : 'bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed opacity-50'
+          }`}
+          title={canEdit ? "Add child" : "View only - No edit permission"}
         >
           <Plus size={14} strokeWidth={3} />
         </button>

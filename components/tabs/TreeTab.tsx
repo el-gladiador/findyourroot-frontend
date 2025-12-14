@@ -9,9 +9,15 @@ import { Person } from '@/lib/types';
 const TreeTab = () => {
   const familyData = useAppStore((state) => state.familyData);
   const clearTree = useAppStore((state) => state.clearTree);
+  const user = useAppStore((state) => state.user);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [parentForNewPerson, setParentForNewPerson] = useState<string | undefined>(undefined);
+  const [permissionWarning, setPermissionWarning] = useState<string | null>(null);
+  
+  // Check if user can edit
+  const canEdit = user?.role === 'editor' || user?.role === 'admin';
+  const canDelete = user?.role === 'admin';
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   
@@ -57,6 +63,27 @@ const TreeTab = () => {
       nodeRefs.current.set(id, el);
     } else {
       nodeRefs.current.delete(id);
+    }
+  };
+
+  const handleAddClick = (parentId?: string) => {
+    if (!canEdit) {
+      setPermissionWarning('You need Editor or Admin permissions to modify the tree. Please request permissions from an administrator.');
+      setTimeout(() => setPermissionWarning(null), 5000);
+      return;
+    }
+    setParentForNewPerson(parentId);
+    setShowAddModal(true);
+  };
+
+  const handleClearTree = async () => {
+    if (!canDelete) {
+      setPermissionWarning('Only Administrators can clear the entire tree.');
+      setTimeout(() => setPermissionWarning(null), 5000);
+      return;
+    }
+    if (confirm('Are you sure you want to delete all family members? This action cannot be undone.')) {
+      await clearTree();
     }
   };
 
@@ -317,10 +344,8 @@ const TreeTab = () => {
             <TreeNode 
               person={person} 
               onClick={() => setSelectedPerson(person)}
-              onAddChild={() => {
-                setParentForNewPerson(person.id);
-                setShowAddModal(true);
-              }}
+              onAddChild={() => handleAddClick(person.id)}
+              canEdit={canEdit}
             />
           </div>
           
@@ -335,10 +360,8 @@ const TreeTab = () => {
                   person={spouse} 
                   isSpouse 
                   onClick={() => setSelectedPerson(spouse)}
-                  onAddChild={() => {
-                    setParentForNewPerson(spouse.id);
-                    setShowAddModal(true);
-                  }}
+                  onAddChild={() => handleAddClick(spouse.id)}
+                  canEdit={canEdit}
                 />
               </div>
             </>
@@ -361,10 +384,11 @@ const TreeTab = () => {
         <div className="text-center">
           <p className="text-slate-600 dark:text-slate-400 mb-4">No family members yet</p>
           <button
-            onClick={() => setShowAddModal(true)}
-            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors"
+            onClick={() => handleAddClick()}
+            disabled={!canEdit}
+            className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            Add First Person
+            {canEdit ? 'Add First Person' : 'View Only - No Edit Permission'}
           </button>
         </div>
         
@@ -456,20 +480,35 @@ const TreeTab = () => {
         </div>
       </div>
 
-      {/* Clear Tree Button (Testing) */}
-      <div className="fixed right-6 flex flex-col gap-2 z-50" style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}>
-        <button
-          onClick={async () => {
-            if (confirm('Are you sure you want to delete ALL family members? This cannot be undone!')) {
-              await clearTree();
-            }
-          }}
-          className="w-10 h-10 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center active:scale-95"
-          title="Clear entire tree (Testing)"
-        >
-          <Trash2 size={20} />
-        </button>
-      </div>
+      {/* Clear Tree Button (Admin only) */}
+      {canDelete && (
+        <div className="fixed right-6 flex flex-col gap-2 z-50" style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}>
+          <button
+            onClick={handleClearTree}
+            className="w-10 h-10 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center active:scale-95"
+            title="Clear entire tree (Admin only)"
+          >
+            <Trash2 size={20} />
+          </button>
+        </div>
+      )}
+
+      {/* Permission Warning Toast */}
+      {permissionWarning && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-top-2">
+          <div className="bg-amber-50 dark:bg-amber-900/20 border-2 border-amber-500 dark:border-amber-600 text-amber-900 dark:text-amber-200 px-6 py-4 rounded-lg shadow-xl max-w-md">
+            <div className="flex items-start gap-3">
+              <svg className="w-6 h-6 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <h4 className="font-semibold mb-1">Permission Required</h4>
+                <p className="text-sm">{permissionWarning}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
     

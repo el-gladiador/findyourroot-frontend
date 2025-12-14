@@ -1,13 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { TabType, Person } from './types';
+import { TabType, Person, User } from './types';
 import { FAMILY_DATA } from './data';
 import { ApiClient } from './api';
-
-interface User {
-  id: string;
-  email: string;
-}
 
 interface AppState {
   // Auth state
@@ -15,6 +10,7 @@ interface AppState {
   user: User | null;
   token: string | null;
   login: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
+  register: (email: string, password: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   validateAuth: () => Promise<boolean>;
   
@@ -68,6 +64,27 @@ export const useAppStore = create<AppState>()(
         
         return { success: false, error: response.error || 'Login failed' };
       },
+
+      register: async (email: string, password: string) => {
+        const response = await ApiClient.register(email, password);
+        
+        if (response.data) {
+          const { token, user } = response.data;
+          ApiClient.setToken(token);
+          set({
+            isAuthenticated: true,
+            user,
+            token,
+          });
+          
+          // Fetch family data after successful registration
+          await get().fetchFamilyData();
+          
+          return { success: true };
+        }
+        
+        return { success: false, error: response.error || 'Registration failed' };
+      },
       
       logout: () => {
         ApiClient.setToken(null);
@@ -89,9 +106,17 @@ export const useAppStore = create<AppState>()(
         const response = await ApiClient.validateToken();
         
         if (response.data?.valid) {
+          const currentUser = get().user;
+          const newUser = response.data.user;
+          
+          // Check if user role changed
+          if (currentUser && currentUser.role !== newUser.role) {
+            console.log('[Auth] User role changed:', currentUser.role, '->', newUser.role);
+          }
+          
           set({
             isAuthenticated: true,
-            user: response.data.user,
+            user: newUser,
             token,
           });
           
@@ -144,8 +169,7 @@ export const useAppStore = create<AppState>()(
         const response = await ApiClient.createPerson(person, parentId);
         
         if (response.data) {
-          // Fetch fresh data from backend to get updated tree structure
-          await get().fetchFamilyData();
+          // Real-time sync will update the data automatically
           return response.data.id;
         }
         
@@ -158,8 +182,7 @@ export const useAppStore = create<AppState>()(
         const response = await ApiClient.deletePerson(id);
         
         if (!response.error) {
-          // Fetch fresh data from backend - backend handles cleanup
-          await get().fetchFamilyData();
+          // Real-time sync will update the data automatically
           return true;
         }
         
@@ -172,8 +195,7 @@ export const useAppStore = create<AppState>()(
         const response = await ApiClient.updatePerson(id, updates);
         
         if (response.data) {
-          // Fetch fresh data from backend to ensure consistency
-          await get().fetchFamilyData();
+          // Real-time sync will update the data automatically
           return true;
         }
         
@@ -191,6 +213,11 @@ export const useAppStore = create<AppState>()(
         }
         
         return false;
+      },
+      
+      // Internal method for real-time sync to update data directly
+      setFamilyData: (data: Person[]) => {
+        set({ familyData: data });
       },
     }),
     {

@@ -6,9 +6,14 @@ const getApiBaseUrl = () => {
   
   // In browser, use current hostname with port 8080
   if (typeof window !== 'undefined') {
-    const protocol = window.location.protocol;
     const hostname = window.location.hostname;
-    return `${protocol}//${hostname}:8080`;
+    // Always use http for local development (localhost or IP addresses)
+    // Only use https for production domains
+    const isLocalDev = hostname === 'localhost' || 
+                       hostname === '127.0.0.1' || 
+                       /^\d+\.\d+\.\d+\.\d+$/.test(hostname); // IP address
+    const protocol = isLocalDev ? 'http' : window.location.protocol.replace(':', '');
+    return `${protocol}://${hostname}:8080`;
   }
   
   // Fallback for SSR
@@ -28,6 +33,8 @@ interface LoginResponse {
   user: {
     id: string;
     email: string;
+    role: string;
+    is_admin: boolean;
   };
 }
 
@@ -77,9 +84,12 @@ export class ApiClient {
     }
 
     try {
+      console.log(`[API] Request to: ${API_BASE_URL}${endpoint}`);
+      
       const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...options,
         headers,
+        mode: 'cors', // Explicitly set CORS mode
       });
 
       if (response.status === 401) {
@@ -91,6 +101,7 @@ export class ApiClient {
       const data = await response.json();
 
       if (!response.ok) {
+        console.error(`[API] Error response:`, data);
         return {
           error: data.error || data.message || 'Request failed',
         };
@@ -98,7 +109,15 @@ export class ApiClient {
 
       return { data };
     } catch (error) {
-      console.error('API request failed:', error);
+      console.error(`[API] Request failed to ${API_BASE_URL}${endpoint}:`, error);
+      
+      // Provide more specific error messages
+      if (error instanceof TypeError && error.message.includes('fetch')) {
+        return {
+          error: `Cannot connect to server at ${API_BASE_URL}. Please check if the backend is running and accessible from this device.`,
+        };
+      }
+      
       return {
         error: error instanceof Error ? error.message : 'Network error',
       };
@@ -113,9 +132,42 @@ export class ApiClient {
     });
   }
 
+  static async register(email: string, password: string): Promise<ApiResponse<LoginResponse>> {
+    return this.request<LoginResponse>('/api/v1/auth/register', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    });
+  }
+
   static async validateToken(): Promise<ApiResponse<ValidateResponse>> {
     return this.request<ValidateResponse>('/api/v1/auth/validate', {
       method: 'GET',
+    });
+  }
+
+  static async requestPermission(requestedRole: 'editor' | 'admin', message?: string): Promise<ApiResponse<any>> {
+    return this.request('/api/v1/auth/request-permission', {
+      method: 'POST',
+      body: JSON.stringify({ requested_role: requestedRole, message }),
+    });
+  }
+
+  // Admin endpoints
+  static async getPermissionRequests(status = 'pending'): Promise<ApiResponse<any[]>> {
+    return this.request(`/api/v1/admin/permission-requests?status=${status}`, {
+      method: 'GET',
+    });
+  }
+
+  static async approvePermissionRequest(id: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/v1/admin/permission-requests/${id}/approve`, {
+      method: 'POST',
+    });
+  }
+
+  static async rejectPermissionRequest(id: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/v1/admin/permission-requests/${id}/reject`, {
+      method: 'POST',
     });
   }
 

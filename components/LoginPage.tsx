@@ -12,7 +12,9 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
   const [password, setPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [isRegistering, setIsRegistering] = useState(false);
   const login = useAppStore((state) => state.login);
+  const register = useAppStore((state) => state.register);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -20,12 +22,14 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
     setIsLoading(true);
 
     try {
-      const result = await login(email, password);
+      const result = isRegistering 
+        ? await register(email, password)
+        : await login(email, password);
       
       if (result.success) {
         onSuccess?.();
       } else {
-        setError(result.error || 'Login failed. Please check your credentials.');
+        setError(result.error || (isRegistering ? 'Registration failed' : 'Login failed. Please check your credentials.'));
       }
     } catch (err) {
       setError('An unexpected error occurred. Please try again.');
@@ -57,7 +61,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
             Find Your Root
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            Sign in to access your family tree
+            {isRegistering ? 'Create an account to view the family tree' : 'Sign in to access your family tree'}
           </p>
         </div>
 
@@ -136,17 +140,30 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  Signing in...
+                  {isRegistering ? 'Creating account...' : 'Signing in...'}
                 </div>
               ) : (
-                'Sign in'
+                isRegistering ? 'Create Account' : 'Sign in'
               )}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                setIsRegistering(!isRegistering);
+                setError('');
+              }}
+              className="w-full text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
+            >
+              {isRegistering ? 'Already have an account? Sign in' : "Don't have an account? Register"}
             </button>
           </div>
         </form>
 
         <p className="text-center text-xs text-gray-500 dark:text-gray-400">
-          Protected area - Admin access only
+          {isRegistering 
+            ? 'New users will be registered as viewers. You can request elevated permissions after registration.' 
+            : 'Sign in with your credentials or register a new account'}
         </p>
       </div>
     </div>
