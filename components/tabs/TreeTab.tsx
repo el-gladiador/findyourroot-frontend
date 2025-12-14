@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Heart, Plus, ZoomIn, ZoomOut, Maximize2 } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { Heart, Plus, ZoomIn, ZoomOut, Maximize2, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import TreeNode from '@/components/TreeNode';
 import PersonModal from '@/components/PersonModal';
@@ -8,6 +8,7 @@ import { Person } from '@/lib/types';
 
 const TreeTab = () => {
   const familyData = useAppStore((state) => state.familyData);
+  const clearTree = useAppStore((state) => state.clearTree);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [parentForNewPerson, setParentForNewPerson] = useState<string | undefined>(undefined);
@@ -27,11 +28,11 @@ const TreeTab = () => {
   
   const [lines, setLines] = useState<Array<{ x1: number; y1: number; x2: number; y2: number }>>([]);
   
-  // Find root nodes (nodes with no parents)
-  const getRootNodes = () => {
+  // Find root nodes (nodes with no parents) - recalculate when familyData changes
+  const rootNodes = useMemo(() => {
     const allChildIds = new Set(familyData.flatMap(p => p.children));
     return familyData.filter(p => !allChildIds.has(p.id));
-  };
+  }, [familyData]);
   
   // Get children for a person
   const getChildren = (personId: string) => {
@@ -50,8 +51,6 @@ const TreeTab = () => {
       p.children.some(childId => person.children.includes(childId))
     ) || null;
   };
-  
-  const rootNodes = getRootNodes();
   
   const setNodeRef = (id: string) => (el: HTMLDivElement | null) => {
     if (el) {
@@ -346,21 +345,10 @@ const TreeTab = () => {
           )}
         </div>
         
-        {/* Children */}
+        {/* Children - Recursively render the full tree */}
         {children.length > 0 && (
           <div className="flex gap-8 justify-center">
-            {children.map(child => (
-              <div key={child.id} ref={setNodeRef(child.id)} className="cursor-pointer tree-node-clickable">
-                <TreeNode 
-                  person={child} 
-                  onClick={() => setSelectedPerson(child)}
-                  onAddChild={() => {
-                    setParentForNewPerson(child.id);
-                    setShowAddModal(true);
-                  }}
-                />
-              </div>
-            ))}
+            {children.map(child => renderPersonWithFamily(child, generation + 1))}
           </div>
         )}
       </div>
@@ -466,6 +454,21 @@ const TreeTab = () => {
         <div className="text-center text-xs font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-lg px-2 py-1 shadow-md">
           {Math.round(scale * 100)}%
         </div>
+      </div>
+
+      {/* Clear Tree Button (Testing) */}
+      <div className="fixed right-6 flex flex-col gap-2 z-50" style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}>
+        <button
+          onClick={async () => {
+            if (confirm('Are you sure you want to delete ALL family members? This cannot be undone!')) {
+              await clearTree();
+            }
+          }}
+          className="w-10 h-10 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center active:scale-95"
+          title="Clear entire tree (Testing)"
+        >
+          <Trash2 size={20} />
+        </button>
       </div>
 
     </div>

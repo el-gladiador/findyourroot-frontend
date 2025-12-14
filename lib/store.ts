@@ -34,9 +34,10 @@ interface AppState {
   familyData: Person[];
   isLoadingData: boolean;
   fetchFamilyData: () => Promise<void>;
-  addPerson: (person: Omit<Person, 'id'>) => Promise<string | null>;
+  addPerson: (person: Omit<Person, 'id'>, parentId?: string) => Promise<string | null>;
   removePerson: (id: string) => Promise<boolean>;
   updatePerson: (id: string, updates: Partial<Person>) => Promise<boolean>;
+  clearTree: () => Promise<boolean>;
 }
 
 export const useAppStore = create<AppState>()(
@@ -137,15 +138,14 @@ export const useAppStore = create<AppState>()(
         }
       },
       
-      addPerson: async (person) => {
+      addPerson: async (person, parentId) => {
         if (!get().isAuthenticated) return null;
         
-        const response = await ApiClient.createPerson(person);
+        const response = await ApiClient.createPerson(person, parentId);
         
         if (response.data) {
-          set((state) => ({
-            familyData: [...state.familyData, response.data],
-          }));
+          // Fetch fresh data from backend to get updated tree structure
+          await get().fetchFamilyData();
           return response.data.id;
         }
         
@@ -158,12 +158,8 @@ export const useAppStore = create<AppState>()(
         const response = await ApiClient.deletePerson(id);
         
         if (!response.error) {
-          set((state) => ({
-            familyData: state.familyData.filter((p) => p.id !== id).map((p) => ({
-              ...p,
-              children: p.children.filter((childId) => childId !== id),
-            })),
-          }));
+          // Fetch fresh data from backend - backend handles cleanup
+          await get().fetchFamilyData();
           return true;
         }
         
@@ -176,11 +172,21 @@ export const useAppStore = create<AppState>()(
         const response = await ApiClient.updatePerson(id, updates);
         
         if (response.data) {
-          set((state) => ({
-            familyData: state.familyData.map((p) =>
-              p.id === id ? { ...p, ...response.data } : p
-            ),
-          }));
+          // Fetch fresh data from backend to ensure consistency
+          await get().fetchFamilyData();
+          return true;
+        }
+        
+        return false;
+      },
+      
+      clearTree: async () => {
+        if (!get().isAuthenticated) return false;
+        
+        const response = await ApiClient.deleteAllPeople();
+        
+        if (!response.error) {
+          set({ familyData: [] });
           return true;
         }
         

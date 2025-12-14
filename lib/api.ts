@@ -132,10 +132,14 @@ export class ApiClient {
     });
   }
 
-  static async createPerson(person: any): Promise<ApiResponse<any>> {
+  static async createPerson(person: any, parentId?: string): Promise<ApiResponse<any>> {
+    const payload = { ...person };
+    if (parentId) {
+      payload.parent_id = parentId;
+    }
     return this.request('/api/v1/tree', {
       method: 'POST',
-      body: JSON.stringify(person),
+      body: JSON.stringify(payload),
     });
   }
 
@@ -148,6 +152,12 @@ export class ApiClient {
 
   static async deletePerson(id: string): Promise<ApiResponse<any>> {
     return this.request(`/api/v1/tree/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
+  static async deleteAllPeople(): Promise<ApiResponse<any>> {
+    return this.request('/api/v1/tree/all', {
       method: 'DELETE',
     });
   }

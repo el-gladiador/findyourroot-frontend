@@ -45,8 +45,6 @@ const generateRandomData = () => {
 
 const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId }) => {
   const addPerson = useAppStore((state) => state.addPerson);
-  const updatePerson = useAppStore((state) => state.updatePerson);
-  const familyData = useAppStore((state) => state.familyData);
 
   const [formData, setFormData] = useState(generateRandomData());
 
@@ -62,7 +60,8 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId }) =>
     
     const avatar = formData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.name}&backgroundColor=b6e3f4`;
     
-    const newId = await addPerson({
+    // Single API call - backend handles parent-child relationship
+    await addPerson({
       name: formData.name,
       role: formData.role,
       birth: formData.birth,
@@ -70,17 +69,7 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId }) =>
       bio: formData.bio,
       avatar,
       children: [],
-    });
-
-    // If parentId is provided, add this person as a child
-    if (parentId && newId) {
-      const parent = familyData.find(p => p.id === parentId);
-      if (parent) {
-        await updatePerson(parentId, {
-          children: [...parent.children, newId],
-        });
-      }
-    }
+    }, parentId);
 
     onClose();
   };
