@@ -8,31 +8,33 @@ import SearchTab from '@/components/tabs/SearchTab';
 import SettingsTab from '@/components/tabs/SettingsTab';
 import AboutTab from '@/components/tabs/AboutTab';
 import Toast from '@/components/Toast';
+import SplashScreen from '@/components/SplashScreen';
+import UpdatePrompt from '@/components/UpdatePrompt';
+import InstallPrompt from '@/components/InstallPrompt';
+import LoginPage from '@/components/LoginPage';
 import { useToast } from '@/lib/hooks';
-import { useSwipe } from '@/lib/swipe-hooks';
+import { useAppStore } from '@/lib/store';
 
 export default function App() {
+  const [isLoading, setIsLoading] = useState(true);
+  const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
   const [isDarkMode, setIsDarkMode] = useState(false);
   const { toast, showToast, hideToast } = useToast();
-
-  const tabs = ['home', 'search', 'config', 'about'];
   
-  const handleSwipeLeft = () => {
-    const currentIndex = tabs.indexOf(activeTab);
-    if (currentIndex < tabs.length - 1) {
-      setActiveTab(tabs[currentIndex + 1]);
-    }
-  };
+  const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+  const validateAuth = useAppStore((state) => state.validateAuth);
 
-  const handleSwipeRight = () => {
-    const currentIndex = tabs.indexOf(activeTab);
-    if (currentIndex > 0) {
-      setActiveTab(tabs[currentIndex - 1]);
-    }
-  };
-
-  const swipeHandlers = useSwipe(handleSwipeLeft, handleSwipeRight);
+  // Validate authentication on mount
+  useEffect(() => {
+    const checkAuth = async () => {
+      setIsAuthChecking(true);
+      await validateAuth();
+      setIsAuthChecking(false);
+    };
+    
+    checkAuth();
+  }, [validateAuth]);
 
   // Handle system preference and localStorage on mount
   useEffect(() => {
@@ -44,11 +46,30 @@ export default function App() {
     } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
       setIsDarkMode(true);
     }
+
+    // Register service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js').catch(console.error);
+    }
+
+    // Hide splash screen after delay
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2000);
+
+    return () => clearTimeout(timer);
   }, []);
 
-  // Persist theme changes
+  // Persist theme changes and apply to document
   useEffect(() => {
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+    
+    // Apply dark class to html element for Tailwind
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
   }, [isDarkMode]);
 
   // Keyboard shortcuts
@@ -103,31 +124,53 @@ export default function App() {
     }
   };
 
+  // Show loading during auth check
+  if (isAuthChecking) {
+    return <SplashScreen />;
+  }
+
+  // Show login page if not authenticated
+  if (!isAuthenticated) {
+    return (
+      <div className={isDarkMode ? 'dark' : ''}>
+        <LoginPage onSuccess={() => showToast({ type: 'success', message: 'Welcome back!' })} />
+        {toast && <Toast {...toast} onClose={hideToast} />}
+      </div>
+    );
+  }
+
   return (
-    <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'dark bg-slate-950' : 'bg-slate-50'}`}>
+    <>
+      {isLoading && <SplashScreen />}
       
-      {/* Dynamic Top Bar */}
-      <TopBar 
-        title={getTitle()} 
-        isDarkMode={isDarkMode}
-        toggleTheme={toggleTheme}
-      />
+      <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'dark bg-slate-950' : 'bg-slate-50'}`} style={{ minHeight: '-webkit-fill-available' }}>
+        
+        {/* Dynamic Top Bar */}
+        <TopBar 
+          title={getTitle()} 
+          isDarkMode={isDarkMode}
+          toggleTheme={toggleTheme}
+        />
 
-      {/* Main Content Area - Scrollable with Swipe Support */}
-      <main 
-        className="max-w-md mx-auto min-h-screen bg-white dark:bg-slate-900 shadow-2xl overflow-hidden relative border-x border-slate-200 dark:border-slate-800"
-        {...swipeHandlers}
-      >
-        <div className="animate-in fade-in slide-in-from-right-4 duration-300" key={activeTab}>
-          {renderContent()}
-        </div>
-      </main>
+        {/* Main Content Area */}
+        <main 
+          className={`min-h-screen bg-white dark:bg-slate-900 shadow-2xl overflow-hidden relative ${activeTab === 'home' ? 'w-full' : 'max-w-md mx-auto border-x border-slate-200 dark:border-slate-800'}`}
+        >
+          <div className="animate-in fade-in slide-in-from-right-4 duration-300" key={activeTab}>
+            {renderContent()}
+          </div>
+        </main>
 
-      {/* Bottom Navigation */}
-      <BottomNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
+        {/* Bottom Navigation */}
+        <BottomNavigation activeTab={activeTab} setActiveTab={setActiveTab} />
 
-      {/* Toast Notifications */}
-      {toast && <Toast {...toast} onClose={hideToast} />}
-    </div>
+        {/* Toast Notifications */}
+        {toast && <Toast {...toast} onClose={hideToast} />}
+
+        {/* PWA Features */}
+        <UpdatePrompt />
+        <InstallPrompt />
+      </div>
+    </>
   );
 }

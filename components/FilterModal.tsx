@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Filter, X } from 'lucide-react';
 
 interface FilterModalProps {
@@ -18,6 +18,14 @@ export interface FilterState {
 
 const FilterModal: React.FC<FilterModalProps> = ({ onClose, onApply, currentFilters }) => {
   const [filters, setFilters] = useState<FilterState>(currentFilters);
+
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   const validate = (): boolean => {

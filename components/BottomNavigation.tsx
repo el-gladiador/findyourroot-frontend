@@ -15,10 +15,10 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab, setActiv
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-[100]">
-      <div className="max-w-md mx-auto">
+    <div className="fixed bottom-0 left-0 right-0 z-[100] bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg safe-area-bottom">
+      <div className="max-w-md mx-auto border-t border-slate-200 dark:border-slate-800">
         {/* Glassmorphism Container */}
-        <div className="bg-white/90 dark:bg-slate-900/90 backdrop-blur-lg border-t border-slate-200 dark:border-slate-800 pb-safe pt-2 px-6">
+        <div className="pt-2 px-6">
           <div className="flex items-center justify-between h-16">
             {tabs.map((tab) => {
               const Icon = tab.icon;

@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from 'react';
 import { Search, ChevronRight, MapPin, Calendar, User, Filter as FilterIcon } from 'lucide-react';
-import { FAMILY_DATA } from '@/lib/data';
+import { useAppStore } from '@/lib/store';
 import PersonModal from '@/components/PersonModal';
 import FilterModal, { FilterState } from '@/components/FilterModal';
 import { Person } from '@/lib/types';
 import { useDebounce } from '@/lib/swipe-hooks';
 
 const SearchTab = () => {
+  const familyData = useAppStore((state) => state.familyData);
   const [searchInput, setSearchInput] = useState("");
   const searchTerm = useDebounce(searchInput, 300);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
@@ -19,7 +20,7 @@ const SearchTab = () => {
   });
   
   const filteredFamily = useMemo(() => {
-    return FAMILY_DATA.filter(person => {
+    return familyData.filter(person => {
       // Text search
       const matchesSearch = 
         person.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
@@ -39,7 +40,7 @@ const SearchTab = () => {
       
       return matchesSearch && matchesGeneration && matchesLocation && matchesYearFrom && matchesYearTo;
     });
-  }, [searchTerm, filters]);
+  }, [searchTerm, filters, familyData]);
 
   const hasActiveFilters = filters.generation || filters.location || filters.yearFrom || filters.yearTo;
 

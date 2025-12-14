@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Shield, Smartphone, ChevronRight, Download, Share2 } from 'lucide-react';
+import { Bell, Shield, Smartphone, ChevronRight, Download, Share2, LogOut } from 'lucide-react';
 import ExportModal from '@/components/ExportModal';
-import { FAMILY_DATA } from '@/lib/data';
+import { useAppStore } from '@/lib/store';
 import { exportToJSON, exportToCSV, exportToPDF, shareData } from '@/lib/export';
 
 const SettingsTab = () => {
@@ -9,6 +9,10 @@ const SettingsTab = () => {
   const [privacyMode, setPrivacyMode] = useState(false);
   const [offlineAccess, setOfflineAccess] = useState(true);
   const [showExportModal, setShowExportModal] = useState(false);
+  
+  const familyData = useAppStore((state) => state.familyData);
+  const user = useAppStore((state) => state.user);
+  const logout = useAppStore((state) => state.logout);
 
   // Load settings from localStorage
   useEffect(() => {
@@ -43,13 +47,13 @@ const SettingsTab = () => {
   const handleExport = (format: 'json' | 'csv' | 'pdf') => {
     switch (format) {
       case 'json':
-        exportToJSON(FAMILY_DATA);
+        exportToJSON(familyData);
         break;
       case 'csv':
-        exportToCSV(FAMILY_DATA);
+        exportToCSV(familyData);
         break;
       case 'pdf':
-        exportToPDF(FAMILY_DATA);
+        exportToPDF(familyData);
         break;
     }
   };
@@ -57,9 +61,15 @@ const SettingsTab = () => {
   const handleShare = async () => {
     const shared = await shareData(
       'My Family Tree',
-      `Check out my family tree with ${FAMILY_DATA.length} members!`,
+      `Check out my family tree with ${familyData.length} members!`,
       window.location.href
     );
+  };
+  
+  const handleLogout = () => {
+    if (confirm('Are you sure you want to sign out?')) {
+      logout();
+    }
   };
 
   return (
@@ -146,12 +156,27 @@ const SettingsTab = () => {
         <section>
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-2">Account</h3>
           <div className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 shadow-sm">
-            <button className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700">
-              <span className="font-medium text-slate-800 dark:text-white">Edit Profile</span>
-              <ChevronRight size={16} className="text-slate-400" />
-            </button>
-            <button className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
-              <span className="font-medium text-rose-500">Sign Out</span>
+            <div className="p-4 border-b border-slate-100 dark:border-slate-700">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold">
+                  {user?.email.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="font-medium text-slate-800 dark:text-white">{user?.email}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">Administrator</p>
+                </div>
+              </div>
+            </div>
+            <button 
+              onClick={handleLogout}
+              className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+                  <LogOut size={16} />
+                </div>
+                <span className="font-medium text-rose-500">Sign Out</span>
+              </div>
             </button>
           </div>
         </section>

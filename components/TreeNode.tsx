@@ -1,18 +1,19 @@
 import React from 'react';
+import { Plus } from 'lucide-react';
 import { Person } from '@/lib/types';
 
 interface TreeNodeProps {
   person: Person;
   isSpouse?: boolean;
   onClick?: () => void;
+  onAddChild?: () => void;
 }
 
-const TreeNode: React.FC<TreeNodeProps> = ({ person, isSpouse = false, onClick }) => (
+const TreeNode: React.FC<TreeNodeProps> = ({ person, isSpouse = false, onClick, onAddChild }) => (
   <div 
-    className={`relative flex flex-col items-center group ${isSpouse ? 'mt-4 md:mt-0 md:ml-4' : ''}`}
-    onClick={onClick}
+    className={`relative flex flex-col items-center group tree-node-clickable ${isSpouse ? 'mt-4 md:mt-0 md:ml-4' : ''}`}
   >
-    <div className="relative z-10 w-20 h-20 mb-2 transition-transform duration-300 group-hover:scale-105 cursor-pointer">
+    <div className="relative z-10 w-20 h-20 mb-2 transition-transform duration-300 group-hover:scale-105 cursor-pointer tree-node-clickable" onClick={onClick}>
       <div className={`absolute inset-0 rounded-full border-2 ${isSpouse ? 'border-rose-400' : 'border-indigo-500'} opacity-20 animate-pulse`}></div>
       <img 
         src={person.avatar} 
@@ -22,6 +23,18 @@ const TreeNode: React.FC<TreeNodeProps> = ({ person, isSpouse = false, onClick }
       <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-slate-800 dark:bg-white text-white dark:text-slate-900 text-[10px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap shadow-md">
         {person.role}
       </div>
+      {onAddChild && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onAddChild();
+          }}
+          className="absolute -right-1 top-0 w-6 h-6 rounded-full bg-indigo-600 hover:bg-indigo-700 text-white flex items-center justify-center shadow-lg transition-all hover:scale-110 active:scale-95 tree-node-clickable"
+          title="Add child"
+        >
+          <Plus size={14} strokeWidth={3} />
+        </button>
+      )}
     </div>
     <div className="text-center">
       <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight mb-0.5">{person.name}</h4>

@@ -4,9 +4,12 @@
   "description": "Discover and explore your family tree",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#ffffff",
+  "background_color": "#0f172a",
   "theme_color": "#4f46e5",
   "orientation": "portrait",
+  "scope": "/",
+  "categories": ["lifestyle", "utilities"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "/icon-192x192.png",
@@ -19,6 +22,29 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshot.png",
+      "sizes": "540x720",
+      "type": "image/png"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "View Family Tree",
+      "short_name": "Tree",
+      "description": "View your family tree",
+      "url": "/",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Search Family",
+      "short_name": "Search",
+      "description": "Search family members",
+      "url": "/?tab=search",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
     }
   ]
 }

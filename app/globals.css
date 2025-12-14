@@ -22,9 +22,27 @@ body {
     sans-serif;
 }
 
+/* iOS PWA safe area support */
+:root {
+  --safe-area-inset-top: env(safe-area-inset-top, 0px);
+  --safe-area-inset-bottom: env(safe-area-inset-bottom, 0px);
+}
+
 /* Safe area for mobile devices with notches */
 .safe-area-bottom {
-  padding-bottom: env(safe-area-inset-bottom);
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+
+.safe-area-top {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* iOS PWA specific adjustments */
+@supports (-webkit-touch-callout: none) {
+  /* iOS-specific styles */
+  .min-h-screen {
+    min-height: -webkit-fill-available;
+  }
 }
 
 /* Custom scrollbar */

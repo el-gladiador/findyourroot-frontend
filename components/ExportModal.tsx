@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Download, Share2, FileJson, FileText, Image as ImageIcon, X } from 'lucide-react';
 
 interface ExportModalProps {
@@ -10,6 +10,14 @@ interface ExportModalProps {
 
 const ExportModal: React.FC<ExportModalProps> = ({ onClose, onExport }) => {
   const [selectedFormat, setSelectedFormat] = useState<'json' | 'csv' | 'pdf'>('json');
+
+  // Prevent background scrolling when modal is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, []);
 
   const formats = [
     { id: 'json', label: 'JSON', icon: FileJson, description: 'Machine-readable data format' },
