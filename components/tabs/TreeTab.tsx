@@ -43,18 +43,18 @@ const TreeTab = () => {
   // Get children for a person
   const getChildren = (personId: string) => {
     const person = familyData.find(p => p.id === personId);
-    if (!person) return [];
+    if (!person || !person.children) return [];
     return person.children.map(childId => familyData.find(p => p.id === childId)).filter(Boolean) as Person[];
   };
   
   // Find spouse (someone who shares children but isn't in parent-child relationship)
   const findSpouse = (personId: string) => {
     const person = familyData.find(p => p.id === personId);
-    if (!person || person.children.length === 0) return null;
+    if (!person || !person.children || person.children.length === 0) return null;
     
     return familyData.find(p => 
       p.id !== personId && 
-      p.children.some(childId => person.children.includes(childId))
+      p.children?.some(childId => person.children.includes(childId))
     ) || null;
   };
   
@@ -231,7 +231,7 @@ const TreeTab = () => {
       
       // Draw connections for each person with children
       familyData.forEach(person => {
-        if (person.children.length === 0) return;
+        if (!person.children || person.children.length === 0) return;
         
         const spouse = findSpouse(person.id);
         const personPos = getNodePosition(person.id);

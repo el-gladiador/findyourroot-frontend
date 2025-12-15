@@ -37,7 +37,12 @@ export const useRealtimeSync = () => {
             (snapshot) => {
               const people: Person[] = [];
               snapshot.forEach((doc) => {
-                people.push({ id: doc.id, ...doc.data() } as Person);
+                const data = doc.data();
+                people.push({ 
+                  id: doc.id, 
+                  ...data,
+                  children: data.children || [] // Normalize children to always be an array
+                } as Person);
               });
               
               // Update store directly with real-time data

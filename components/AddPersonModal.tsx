@@ -60,6 +60,8 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId }) =>
     
     const avatar = formData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.name}&backgroundColor=b6e3f4`;
     
+    console.log('[AddPersonModal] Creating person with parentId:', parentId);
+    
     // Single API call - backend handles parent-child relationship
     await addPerson({
       name: formData.name,

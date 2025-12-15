@@ -157,7 +157,12 @@ export const useAppStore = create<AppState>()(
         const response = await ApiClient.getAllPeople();
         
         if (response.data) {
-          set({ familyData: response.data, isLoadingData: false });
+          // Normalize data to ensure children is always an array
+          const normalizedData = response.data.map((person: any) => ({
+            ...person,
+            children: person.children || []
+          }));
+          set({ familyData: normalizedData, isLoadingData: false });
         } else {
           set({ isLoadingData: false });
         }
@@ -169,7 +174,8 @@ export const useAppStore = create<AppState>()(
         const response = await ApiClient.createPerson(person, parentId);
         
         if (response.data) {
-          // Real-time sync will update the data automatically
+          // Refetch data to ensure UI is updated with parent-child relationship
+          await get().fetchFamilyData();
           return response.data.id;
         }
         
@@ -182,7 +188,8 @@ export const useAppStore = create<AppState>()(
         const response = await ApiClient.deletePerson(id);
         
         if (!response.error) {
-          // Real-time sync will update the data automatically
+          // Refetch data to ensure UI is updated
+          await get().fetchFamilyData();
           return true;
         }
         
@@ -195,7 +202,8 @@ export const useAppStore = create<AppState>()(
         const response = await ApiClient.updatePerson(id, updates);
         
         if (response.data) {
-          // Real-time sync will update the data automatically
+          // Refetch data to ensure UI is updated
+          await get().fetchFamilyData();
           return true;
         }
         

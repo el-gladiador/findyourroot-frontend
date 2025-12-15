@@ -200,6 +200,9 @@ export class ApiClient {
     const payload = { ...person };
     if (parentId) {
       payload.parent_id = parentId;
+      console.log('[API] Creating person with parent_id:', parentId, 'Payload:', payload);
+    } else {
+      console.log('[API] Creating root person (no parent_id). Payload:', payload);
     }
     return this.request('/api/v1/tree', {
       method: 'POST',
