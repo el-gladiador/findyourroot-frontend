@@ -52,7 +52,7 @@ export const useAppStore = create<AppState>()(
           ApiClient.setToken(token);
           set({
             isAuthenticated: true,
-            user,
+            user: user as User,
             token,
           });
           
@@ -73,7 +73,7 @@ export const useAppStore = create<AppState>()(
           ApiClient.setToken(token);
           set({
             isAuthenticated: true,
-            user,
+            user: user as User,
             token,
           });
           
@@ -107,7 +107,7 @@ export const useAppStore = create<AppState>()(
         
         if (response.data?.valid) {
           const currentUser = get().user;
-          const newUser = response.data.user;
+          const newUser = response.data.user as User;
           
           // Check if user role changed
           if (currentUser && currentUser.role !== newUser.role) {

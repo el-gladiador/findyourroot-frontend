@@ -1,3 +1,5 @@
+export type TabType = 'tree' | 'search' | 'settings' | 'about';
+
 export interface Person {
   id: string;
   name: string;
