@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Shield, Smartphone, ChevronRight, Download, Share2, LogOut, UserPlus } from 'lucide-react';
+import { Bell, Shield, Smartphone, ChevronRight, Download, Share2, LogOut, UserPlus, Loader2 } from 'lucide-react';
 import ExportModal from '@/components/ExportModal';
 import { useAppStore } from '@/lib/store';
-import { exportToJSON, exportToCSV, exportToPDF, shareData } from '@/lib/export';
+import { shareData } from '@/lib/export';
 import { ApiClient } from '@/lib/api';
 
 const SettingsTab = () => {
@@ -15,6 +15,7 @@ const SettingsTab = () => {
   const [requestRole, setRequestRole] = useState<'editor' | 'admin'>('editor');
   const [requestStatus, setRequestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
+  const [isExporting, setIsExporting] = useState(false);
   
   const familyData = useAppStore((state) => state.familyData);
   const user = useAppStore((state) => state.user);
@@ -50,17 +51,25 @@ const SettingsTab = () => {
     localStorage.setItem('offlineAccess', String(newValue));
   };
 
-  const handleExport = (format: 'json' | 'csv' | 'pdf') => {
-    switch (format) {
-      case 'json':
-        exportToJSON(familyData);
-        break;
-      case 'csv':
-        exportToCSV(familyData);
-        break;
-      case 'pdf':
-        exportToPDF(familyData);
-        break;
+  const handleExport = async (format: 'json' | 'csv' | 'pdf') => {
+    setIsExporting(true);
+    try {
+      switch (format) {
+        case 'json':
+          await ApiClient.exportJSON();
+          break;
+        case 'csv':
+          await ApiClient.exportCSV();
+          break;
+        case 'pdf':
+          // Backend provides text export (PDF generation could be added later)
+          await ApiClient.exportText();
+          break;
+      }
+    } catch (error) {
+      console.error('Export failed:', error);
+    } finally {
+      setIsExporting(false);
     }
   };
 

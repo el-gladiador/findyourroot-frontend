@@ -58,18 +58,16 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId }) =>
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const avatar = formData.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${formData.name}&backgroundColor=b6e3f4`;
-    
     console.log('[AddPersonModal] Creating person with parentId:', parentId);
     
-    // Single API call - backend handles parent-child relationship
+    // Let backend handle avatar generation if not provided
     await addPerson({
       name: formData.name,
       role: formData.role,
       birth: formData.birth,
       location: formData.location,
       bio: formData.bio,
-      avatar,
+      avatar: formData.avatar, // Send empty string if not set - backend will generate default
       children: [],
     }, parentId);
 

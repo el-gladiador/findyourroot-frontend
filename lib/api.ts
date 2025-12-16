@@ -228,4 +228,110 @@ export class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // Search endpoints
+  static async searchPeople(params: {
+    q?: string;
+    location?: string;
+    role?: string;
+    yearFrom?: string;
+    yearTo?: string;
+    page?: number;
+    pageSize?: number;
+  }): Promise<ApiResponse<{
+    data: any[];
+    total: number;
+    page: number;
+    page_size: number;
+    total_pages: number;
+  }>> {
+    const searchParams = new URLSearchParams();
+    if (params.q) searchParams.set('q', params.q);
+    if (params.location) searchParams.set('location', params.location);
+    if (params.role) searchParams.set('role', params.role);
+    if (params.yearFrom) searchParams.set('year_from', params.yearFrom);
+    if (params.yearTo) searchParams.set('year_to', params.yearTo);
+    if (params.page) searchParams.set('page', params.page.toString());
+    if (params.pageSize) searchParams.set('page_size', params.pageSize.toString());
+    
+    return this.request(`/api/v1/search?${searchParams.toString()}`, {
+      method: 'GET',
+    });
+  }
+
+  static async getLocations(): Promise<ApiResponse<{ locations: string[] }>> {
+    return this.request('/api/v1/search/locations', {
+      method: 'GET',
+    });
+  }
+
+  static async getRoles(): Promise<ApiResponse<{ roles: string[] }>> {
+    return this.request('/api/v1/search/roles', {
+      method: 'GET',
+    });
+  }
+
+  // Export endpoints
+  static async exportJSON(): Promise<void> {
+    const token = this.getToken();
+    const response = await fetch(`${API_BASE_URL}/api/v1/export/json`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (response.ok) {
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = response.headers.get('Content-Disposition')?.split('filename=')[1] || 'family-tree.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  static async exportCSV(): Promise<void> {
+    const token = this.getToken();
+    const response = await fetch(`${API_BASE_URL}/api/v1/export/csv`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (response.ok) {
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = response.headers.get('Content-Disposition')?.split('filename=')[1] || 'family-tree.csv';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  }
+
+  static async exportText(): Promise<void> {
+    const token = this.getToken();
+    const response = await fetch(`${API_BASE_URL}/api/v1/export/text`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    });
+    
+    if (response.ok) {
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = response.headers.get('Content-Disposition')?.split('filename=')[1] || 'family-tree.txt';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+  }
 }

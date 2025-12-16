@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { TabType, Person, User } from './types';
-import { FAMILY_DATA } from './data';
 import { ApiClient } from './api';
 
 interface AppState {
