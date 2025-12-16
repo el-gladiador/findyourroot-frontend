@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Shield, Smartphone, ChevronRight, Download, Share2, LogOut, UserPlus, Loader2 } from 'lucide-react';
+import { Bell, Shield, Smartphone, ChevronRight, Download, Share2, LogOut, UserPlus, Loader2, UserCheck } from 'lucide-react';
 import ExportModal from '@/components/ExportModal';
+import IdentityClaimModal from '@/components/IdentityClaimModal';
 import { useAppStore } from '@/lib/store';
 import { shareData } from '@/lib/export';
 import { ApiClient } from '@/lib/api';
@@ -11,6 +12,7 @@ const SettingsTab = () => {
   const [offlineAccess, setOfflineAccess] = useState(true);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
+  const [showIdentityModal, setShowIdentityModal] = useState(false);
   const [requestMessage, setRequestMessage] = useState('');
   const [requestRole, setRequestRole] = useState<'editor' | 'admin'>('editor');
   const [requestStatus, setRequestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -206,6 +208,31 @@ const SettingsTab = () => {
               </div>
             </div>
             
+            {/* Claim Identity Button - Show for all users */}
+            <button 
+              onClick={() => setShowIdentityModal(true)}
+              className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
+            >
+              <div className="flex items-center gap-3">
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  user?.person_id 
+                    ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400'
+                    : 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400'
+                }`}>
+                  <UserCheck size={16} />
+                </div>
+                <div>
+                  <span className="font-medium text-slate-800 dark:text-white block">
+                    {user?.person_id ? 'My Tree Identity' : 'Claim My Identity'}
+                  </span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {user?.person_id ? 'Linked to family tree' : 'Link your profile to the tree'}
+                  </span>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </button>
+            
             {/* Request Permissions Button - Only show for viewers */}
             {user?.role === 'viewer' && (
               <button 
@@ -324,6 +351,11 @@ const SettingsTab = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Identity Claim Modal */}
+        {showIdentityModal && (
+          <IdentityClaimModal onClose={() => setShowIdentityModal(false)} />
         )}
       </div>
     </div>

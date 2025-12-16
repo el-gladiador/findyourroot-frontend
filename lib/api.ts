@@ -334,4 +334,42 @@ export class ApiClient {
       URL.revokeObjectURL(url);
     }
   }
+
+  // Identity claim endpoints
+  static async claimIdentity(personId: string, message?: string): Promise<ApiResponse<any>> {
+    return this.request('/api/v1/identity/claim', {
+      method: 'POST',
+      body: JSON.stringify({ person_id: personId, message }),
+    });
+  }
+
+  static async getMyIdentityClaim(): Promise<ApiResponse<{
+    linked: boolean;
+    person?: any;
+    claim?: any;
+  }>> {
+    return this.request('/api/v1/identity/my-claim', {
+      method: 'GET',
+    });
+  }
+
+  // Admin identity claim endpoints
+  static async getIdentityClaims(status = 'pending'): Promise<ApiResponse<any[]>> {
+    return this.request(`/api/v1/admin/identity-claims?status=${status}`, {
+      method: 'GET',
+    });
+  }
+
+  static async reviewIdentityClaim(id: string, approved: boolean, reviewNotes?: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/v1/admin/identity-claims/${id}/review`, {
+      method: 'POST',
+      body: JSON.stringify({ approved, review_notes: reviewNotes }),
+    });
+  }
+
+  static async unlinkIdentity(userId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/v1/admin/identity-claims/unlink/${userId}`, {
+      method: 'DELETE',
+    });
+  }
 }
