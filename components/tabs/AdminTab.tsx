@@ -32,9 +32,17 @@ const AdminTab = () => {
 
   const fetchIdentityClaims = async () => {
     setIsLoadingClaims(true);
+    console.log('[AdminTab] Fetching identity claims with filter:', claimFilter);
     const response = await ApiClient.getIdentityClaims(claimFilter);
+    console.log('[AdminTab] Identity claims response:', response);
+    if (response.error) {
+      console.error('[AdminTab] Error fetching identity claims:', response.error);
+    }
     if (response.data) {
+      console.log('[AdminTab] Setting identity claims:', response.data);
       setIdentityClaims(response.data);
+    } else {
+      setIdentityClaims([]);
     }
     setIsLoadingClaims(false);
   };
