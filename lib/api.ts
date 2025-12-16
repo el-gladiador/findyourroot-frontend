@@ -355,12 +355,9 @@ export class ApiClient {
 
   // Admin identity claim endpoints
   static async getIdentityClaims(status = 'pending'): Promise<ApiResponse<any[]>> {
-    console.log('[API] getIdentityClaims called with status:', status);
-    const result = await this.request<any[]>(`/api/v1/admin/identity-claims?status=${status}`, {
+    return this.request<any[]>(`/api/v1/admin/identity-claims?status=${status}`, {
       method: 'GET',
     });
-    console.log('[API] getIdentityClaims result:', result);
-    return result;
   }
 
   static async reviewIdentityClaim(id: string, approved: boolean, reviewNotes?: string): Promise<ApiResponse<any>> {

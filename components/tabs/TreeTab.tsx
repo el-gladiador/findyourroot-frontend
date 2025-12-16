@@ -1,8 +1,9 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
+import { AnimatePresence } from 'framer-motion';
 import { Heart, Plus, ZoomIn, ZoomOut, Maximize2, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import TreeNode from '@/components/TreeNode';
-import PersonModal from '@/components/PersonModal';
+import ExpandedPersonCard from '@/components/ExpandedPersonCard';
 import AddPersonModal from '@/components/AddPersonModal';
 import { Person } from '@/lib/types';
 
@@ -346,6 +347,7 @@ const TreeTab = () => {
               onClick={() => setSelectedPerson(person)}
               onAddChild={() => handleAddClick(person.id)}
               canEdit={canEdit}
+              isSelected={selectedPerson?.id === person.id}
             />
           </div>
           
@@ -362,6 +364,7 @@ const TreeTab = () => {
                   onClick={() => setSelectedPerson(spouse)}
                   onAddChild={() => handleAddClick(spouse.id)}
                   canEdit={canEdit}
+                  isSelected={selectedPerson?.id === spouse.id}
                 />
               </div>
             </>
@@ -512,11 +515,26 @@ const TreeTab = () => {
 
     </div>
     
-    {/* Modals - Rendered outside the fixed viewport to ensure proper z-index stacking */}
-    {/* Person Modal */}
-    {selectedPerson && (
-      <PersonModal person={selectedPerson} onClose={() => setSelectedPerson(null)} />
-    )}
+    {/* Expanded Person Card with Shared Element Transition */}
+    <AnimatePresence>
+      {selectedPerson && (
+        <ExpandedPersonCard 
+          person={selectedPerson} 
+          onClose={() => setSelectedPerson(null)}
+          onEdit={() => {
+            // TODO: Implement edit functionality
+          }}
+          onDelete={() => {
+            // TODO: Implement delete functionality
+          }}
+          onAddChild={() => {
+            handleAddClick(selectedPerson.id);
+            setSelectedPerson(null);
+          }}
+          canEdit={canEdit}
+        />
+      )}
+    </AnimatePresence>
 
     {/* Add Person Modal */}
     {showAddModal && (
