@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, User, Calendar, UserPlus, Clock, Wand2 } from 'lucide-react';
+import { X, User, Calendar, UserPlus, Wand2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 
 interface AddPersonModalProps {
@@ -79,20 +79,13 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSu
         {/* Header */}
         <div className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-5 py-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-2">
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isContributor ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-indigo-100 dark:bg-indigo-900/30'}`}>
-              {isContributor ? (
-                <Clock size={18} className="text-amber-600 dark:text-amber-400" />
-              ) : (
-                <UserPlus size={18} className="text-indigo-600 dark:text-indigo-400" />
-              )}
+            <div className="w-8 h-8 rounded-full flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/30">
+              <UserPlus size={18} className="text-indigo-600 dark:text-indigo-400" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                {isContributor ? 'Suggest Family Member' : 'Add Family Member'}
+                Add Family Member
               </h2>
-              {isContributor && (
-                <p className="text-xs text-amber-600 dark:text-amber-400">Requires admin approval</p>
-              )}
             </div>
           </div>
           <button 
@@ -171,28 +164,15 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSu
             <button
               type="submit"
               disabled={isSubmitting}
-              className={`flex-1 px-4 py-2.5 text-white rounded-lg font-medium transition-colors active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 ${
-                isContributor 
-                  ? 'bg-amber-600 hover:bg-amber-700' 
-                  : 'bg-indigo-600 hover:bg-indigo-700'
-              }`}
+              className="flex-1 px-4 py-2.5 text-white rounded-lg font-medium transition-colors active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700"
             >
               {isSubmitting ? (
                 <>
                   <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  {isContributor ? 'Submitting...' : 'Adding...'}
+                  Adding...
                 </>
               ) : (
-                <>
-                  {isContributor ? (
-                    <>
-                      <Clock size={18} />
-                      Submit Suggestion
-                    </>
-                  ) : (
-                    'Add Person'
-                  )}
-                </>
+                'Add Person'
               )}
             </button>
           </div>
