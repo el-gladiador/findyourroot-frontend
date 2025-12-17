@@ -64,17 +64,22 @@ const TreeTab = () => {
     lastTime: 0,
     // Animation frame for inertia
     inertiaRafId: null as number | null,
+    // Snap-back animation
+    snapBackRafId: null as number | null,
+    scaleVelocity: 0,
   });
   
   // Physics constants
   const ZOOM_MIN = 0.3;
   const ZOOM_MAX = 1.5;
-  const ZOOM_ELASTIC_MIN = 0.2;  // Allow over-zoom down to this
-  const ZOOM_ELASTIC_MAX = 2.0;  // Allow over-zoom up to this
-  const FRICTION = 0.92;         // Velocity decay per frame (lower = more friction)
-  const MIN_VELOCITY = 0.5;      // Stop animation below this velocity
-  const VELOCITY_SCALE = 0.3;    // Scale factor for initial velocity
-  const SPRING_STIFFNESS = 0.15; // How fast zoom snaps back
+  const ZOOM_ELASTIC_MIN = 0.15;  // Allow over-zoom down to this
+  const ZOOM_ELASTIC_MAX = 2.2;   // Allow over-zoom up to this
+  const FRICTION = 0.92;          // Velocity decay per frame (lower = more friction)
+  const MIN_VELOCITY = 0.5;       // Stop animation below this velocity
+  const VELOCITY_SCALE = 0.3;     // Scale factor for initial velocity
+  // Spring physics for snap-back
+  const SPRING_TENSION = 300;     // Spring stiffness
+  const SPRING_FRICTION = 20;     // Damping
   
   // Keep refs in sync with state
   useEffect(() => {
@@ -247,6 +252,10 @@ const TreeTab = () => {
       cancelAnimationFrame(gestureState.current.inertiaRafId);
       gestureState.current.inertiaRafId = null;
     }
+    if (gestureState.current.snapBackRafId !== null) {
+      cancelAnimationFrame(gestureState.current.snapBackRafId);
+      gestureState.current.snapBackRafId = null;
+    }
   }, []);
 
   // Run inertia animation after releasing pan
@@ -281,33 +290,59 @@ const TreeTab = () => {
     gestureState.current.inertiaRafId = requestAnimationFrame(animate);
   }, [applyTransformToDOM]);
 
-  // Animate zoom snap-back when out of bounds
+  // Animate zoom snap-back when out of bounds using spring physics
   const animateZoomSnapBack = useCallback(() => {
     const gs = gestureState.current;
     const targetScale = Math.min(Math.max(gs.currentScale, ZOOM_MIN), ZOOM_MAX);
     
+    // Already at target
     if (Math.abs(gs.currentScale - targetScale) < 0.001) {
-      setScale(targetScale);
       gs.currentScale = targetScale;
+      setScale(targetScale);
+      setTranslate({ ...gs.currentTranslate });
       return;
     }
     
-    const animate = () => {
-      const diff = targetScale - gs.currentScale;
-      gs.currentScale += diff * SPRING_STIFFNESS;
+    // Initialize velocity for spring
+    gs.scaleVelocity = 0;
+    let lastTime = performance.now();
+    
+    const animate = (currentTime: number) => {
+      const deltaTime = Math.min((currentTime - lastTime) / 1000, 0.064); // Cap at ~15fps minimum
+      lastTime = currentTime;
       
+      // Spring physics: F = -kx - cv
+      // k = tension, c = friction, x = displacement, v = velocity
+      const displacement = gs.currentScale - targetScale;
+      const springForce = -SPRING_TENSION * displacement;
+      const dampingForce = -SPRING_FRICTION * gs.scaleVelocity;
+      const acceleration = springForce + dampingForce;
+      
+      // Update velocity and position
+      gs.scaleVelocity += acceleration * deltaTime;
+      gs.currentScale += gs.scaleVelocity * deltaTime;
+      
+      // Apply to DOM immediately
       applyTransformToDOM(gs.currentTranslate.x, gs.currentTranslate.y, gs.currentScale);
       
-      if (Math.abs(targetScale - gs.currentScale) < 0.001) {
+      // Check if animation is done (settled)
+      const isSettled = Math.abs(displacement) < 0.001 && Math.abs(gs.scaleVelocity) < 0.01;
+      
+      if (isSettled) {
+        // Snap to exact target and sync state
         gs.currentScale = targetScale;
-        setScale(targetScale);
+        gs.scaleVelocity = 0;
+        gs.snapBackRafId = null;
         applyTransformToDOM(gs.currentTranslate.x, gs.currentTranslate.y, targetScale);
+        // Sync React state
+        setScale(targetScale);
+        setTranslate({ ...gs.currentTranslate });
       } else {
-        requestAnimationFrame(animate);
+        gs.snapBackRafId = requestAnimationFrame(animate);
       }
     };
     
-    requestAnimationFrame(animate);
+    gs.snapBackRafId = requestAnimationFrame(animate);
   }, [applyTransformToDOM]);
 
   // Pan handlers - Optimized for performance with velocity tracking
@@ -505,13 +540,13 @@ const TreeTab = () => {
         const needsSnapBack = currentScale < ZOOM_MIN || currentScale > ZOOM_MAX;
         
         if (needsSnapBack) {
-          // Animate snap-back to valid zoom range
+          // Animate snap-back to valid zoom range (this will sync state when done)
           animateZoomSnapBack();
         } else {
+          // Within bounds - sync state immediately
           setScale(currentScale);
+          setTranslate({ ...gestureState.current.currentTranslate });
         }
-        
-        setTranslate({ ...gestureState.current.currentTranslate });
         
         // If one finger remains, start panning from that position
         if (e.touches.length === 1) {
