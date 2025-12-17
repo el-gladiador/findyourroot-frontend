@@ -412,9 +412,6 @@ const TreeTab = () => {
     return newLines;
   }, [familyData, findSpouse, getChildren]);
 
-  // Track when nodes have been rendered for line calculation
-  const [nodesRendered, setNodesRendered] = useState(0);
-
   // Update lines when familyData changes or nodes are re-rendered
   useEffect(() => {
     // Use requestAnimationFrame to ensure DOM is updated
