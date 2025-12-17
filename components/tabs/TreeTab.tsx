@@ -414,28 +414,33 @@ const TreeTab = () => {
 
   // Update lines when familyData changes or nodes are re-rendered
   useEffect(() => {
-    // Use requestAnimationFrame to ensure DOM is updated
-    const calculateAfterRender = () => {
-      requestAnimationFrame(() => {
-        const newLines = calculateLines();
-        setLines(newLines);
-      });
-    };
+    // Multiple attempts to ensure lines are drawn after nodes render
+    const attempts = [0, 50, 150, 300, 500];
+    const timers: NodeJS.Timeout[] = [];
     
-    // Small delay to ensure nodes are fully rendered
-    const timer = setTimeout(calculateAfterRender, 50);
+    attempts.forEach(delay => {
+      const timer = setTimeout(() => {
+        requestAnimationFrame(() => {
+          const newLines = calculateLines();
+          if (newLines.length > 0 || delay === attempts[attempts.length - 1]) {
+            setLines(newLines);
+          }
+        });
+      }, delay);
+      timers.push(timer);
+    });
     
-    return () => clearTimeout(timer);
+    return () => timers.forEach(t => clearTimeout(t));
   }, [familyData, calculateLines, nodesRendered]);
 
   // Recalculate lines when nodes mount/unmount
   useEffect(() => {
-    // Trigger recalculation when component mounts
-    const timer = setTimeout(() => {
-      setNodesRendered(n => n + 1);
-    }, 150);
+    // Trigger recalculation when component mounts with multiple attempts
+    const timers = [100, 250, 400].map(delay => 
+      setTimeout(() => setNodesRendered(n => n + 1), delay)
+    );
     
-    return () => clearTimeout(timer);
+    return () => timers.forEach(t => clearTimeout(t));
   }, [familyData.length]);
 
   // Handle resize

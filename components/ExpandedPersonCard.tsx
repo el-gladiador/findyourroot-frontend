@@ -30,12 +30,11 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
   const removePerson = useAppStore((state) => state.removePerson);
   const [isDeleting, setIsDeleting] = useState(false);
   
-  // Spring transition matching TreeNode
-  const springTransition = {
-    type: 'spring' as const,
-    stiffness: 400,
-    damping: 30,
-    mass: 0.8,
+  // Smooth tween transition matching TreeNode
+  const smoothTransition = {
+    type: 'tween' as const,
+    duration: 0.35,
+    ease: [0.4, 0, 0.2, 1] as const,
   };
 
   const handleDelete = async () => {
@@ -78,9 +77,9 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
         {/* The circle morphs into this card - starts as circle (borderRadius: 40) ends as rounded rect (borderRadius: 24) */}
         <motion.div
           layoutId={`card-${person.id}`}
-          transition={springTransition}
+          layout="position"
+          transition={smoothTransition}
           style={{ 
-            willChange: 'transform',
             borderRadius: 24, // Morphs from 40 (circle) to 24 (rounded rect)
           }}
           className="relative w-full max-w-sm bg-white dark:bg-slate-800 shadow-2xl overflow-hidden pointer-events-auto"
@@ -122,11 +121,11 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
                 <div className="relative w-24 h-24 rounded-full border-4 border-white dark:border-slate-800 overflow-hidden shadow-xl">
                   <motion.img
                     layoutId={`avatar-img-${person.id}`}
-                    transition={springTransition}
+                    layout="position"
+                    transition={smoothTransition}
                     src={person.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=6366f1&color=fff&size=96`}
                     alt={person.name}
                     className="w-full h-full object-cover"
-                    style={{ willChange: 'transform' }}
                   />
                 </div>
               </div>
@@ -136,8 +135,8 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
             <div className="flex justify-center mb-2">
               <motion.div
                 layoutId={`role-${person.id}`}
-                transition={springTransition}
-                style={{ willChange: 'transform' }}
+                layout="position"
+                transition={smoothTransition}
                 className="px-4 py-1.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-full"
               >
                 <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
@@ -149,8 +148,8 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
             {/* Name - Shared Element */}
             <motion.div
               layoutId={`name-${person.id}`}
-              transition={springTransition}
-              style={{ willChange: 'transform' }}
+              layout="position"
+              transition={smoothTransition}
               className="text-center mb-4"
             >
               <h2 className="text-2xl font-bold text-slate-800 dark:text-white">
