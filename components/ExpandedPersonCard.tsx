@@ -77,7 +77,6 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
         {/* The circle morphs into this card - starts as circle (borderRadius: 40) ends as rounded rect (borderRadius: 24) */}
         <motion.div
           layoutId={`card-${person.id}`}
-          layout="position"
           transition={smoothTransition}
           style={{ 
             borderRadius: 24, // Morphs from 40 (circle) to 24 (rounded rect)
@@ -121,7 +120,6 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
                 <div className="relative w-24 h-24 rounded-full border-4 border-white dark:border-slate-800 overflow-hidden shadow-xl">
                   <motion.img
                     layoutId={`avatar-img-${person.id}`}
-                    layout="position"
                     transition={smoothTransition}
                     src={person.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=6366f1&color=fff&size=96`}
                     alt={person.name}
@@ -135,7 +133,6 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
             <div className="flex justify-center mb-2">
               <motion.div
                 layoutId={`role-${person.id}`}
-                layout="position"
                 transition={smoothTransition}
                 className="px-4 py-1.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-full"
               >
@@ -148,7 +145,6 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
             {/* Name - Shared Element */}
             <motion.div
               layoutId={`name-${person.id}`}
-              layout="position"
               transition={smoothTransition}
               className="text-center mb-4"
             >

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, LayoutGroup } from 'framer-motion';
 import { Heart, Plus, ZoomIn, ZoomOut, Maximize2, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import TreeNode from '@/components/TreeNode';
@@ -808,7 +808,7 @@ const TreeTab = () => {
   const hasModalOpen = selectedPerson !== null || showAddModal;
 
   return (
-    <>
+    <LayoutGroup>
     <div 
       ref={viewportRef}
       className="fixed inset-0 top-0 bottom-0 left-0 right-0 overflow-hidden bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px] animate-in fade-in duration-500 touch-none overscroll-none"
@@ -972,7 +972,7 @@ const TreeTab = () => {
         isContributor={isContributor}
       />
     )}
-    </>
+    </LayoutGroup>
   );
 };
 

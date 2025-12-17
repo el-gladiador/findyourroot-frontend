@@ -37,7 +37,6 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
         <div className="relative w-20 h-20 mb-2">
           <motion.div
             layoutId={`card-${person.id}`}
-            layout="position"
             transition={smoothTransition}
             style={{ 
               width: 80,
@@ -66,7 +65,6 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
         {/* Main Circle - This morphs into the card */}
         <motion.div
           layoutId={`card-${person.id}`}
-          layout="position"
           transition={smoothTransition}
           style={{ 
             borderRadius: 40, // Start as perfect circle (half of 80px)
@@ -76,7 +74,6 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
           {/* Avatar Image inside the morphing container */}
           <motion.img 
             layoutId={`avatar-img-${person.id}`}
-            layout="position"
             transition={smoothTransition}
             src={person.avatar} 
             alt={person.name} 
@@ -87,7 +84,6 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
         {/* Role Badge */}
         <motion.div
           layoutId={`role-${person.id}`}
-          layout="position"
           transition={smoothTransition}
           className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-slate-800 dark:bg-white px-2 py-0.5 rounded-full whitespace-nowrap shadow-md z-10"
         >
@@ -124,7 +120,6 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
       {/* Name */}
       <motion.div
         layoutId={`name-${person.id}`}
-        layout="position"
         transition={smoothTransition}
         className="text-center"
       >
