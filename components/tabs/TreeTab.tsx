@@ -512,80 +512,6 @@ const TreeTab = () => {
       onTouchEnd={hasModalOpen ? undefined : handleTouchEnd}
       style={{ cursor: hasModalOpen ? 'default' : (isPanning ? 'grabbing' : 'grab'), touchAction: 'none' }}
     >
-      {/* Search Bar - Fixed at top */}
-      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2">
-        <AnimatePresence>
-          {showSearch && (
-            <motion.div
-              initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 280, opacity: 1 }}
-              exit={{ width: 0, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
-              className="overflow-hidden"
-            >
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-                <input 
-                  ref={searchInputRef}
-                  type="text" 
-                  placeholder="Search family member..." 
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 dark:text-white placeholder-slate-400 transition-all outline-none shadow-lg text-sm"
-                />
-                {isSearching && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-indigo-500" />
-                )}
-                {!isSearching && searchInput && !searchResult && (
-                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">No match</span>
-                )}
-                {!isSearching && searchResult && (
-                  <motion.div 
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center"
-                  >
-                    <span className="text-white text-xs">✓</span>
-                  </motion.div>
-                )}
-              </div>
-              {/* Search result preview */}
-              {searchResult && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="mt-2 p-3 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
-                  onClick={() => setSelectedPerson(searchResult)}
-                >
-                  <div className="flex items-center gap-3">
-                    <img 
-                      src={searchResult.avatar} 
-                      alt={searchResult.name}
-                      className="w-10 h-10 rounded-full object-cover border-2 border-indigo-500"
-                    />
-                    <div>
-                      <p className="font-semibold text-sm text-slate-800 dark:text-white">{searchResult.name}</p>
-                      <p className="text-xs text-indigo-500">{searchResult.role}</p>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-            </motion.div>
-          )}
-        </AnimatePresence>
-        <button
-          onClick={toggleSearch}
-          className={`w-10 h-10 rounded-xl shadow-lg flex items-center justify-center transition-all active:scale-95 ${
-            showSearch 
-              ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
-              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
-          }`}
-          title={showSearch ? 'Close search' : 'Search'}
-        >
-          {showSearch ? <X size={20} /> : <Search size={20} />}
-        </button>
-      </div>
-
       <div 
         className="absolute top-1/2 left-1/2"
         style={{
@@ -662,6 +588,158 @@ const TreeTab = () => {
           </button>
         </div>
       )}
+
+      {/* Liquid Glass Floating Search Button */}
+      <div 
+        className="fixed left-1/2 -translate-x-1/2 z-50"
+        style={{ bottom: 'calc(6rem + env(safe-area-inset-bottom, 0px))' }}
+      >
+        <motion.div
+          layout
+          transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+          className={`
+            relative overflow-hidden
+            ${showSearch 
+              ? 'w-[calc(100vw-3rem)] max-w-md rounded-2xl' 
+              : 'w-14 h-14 rounded-full'
+            }
+          `}
+        >
+          {/* Liquid glass background */}
+          <div className="absolute inset-0 bg-white/70 dark:bg-slate-900/70 backdrop-blur-xl border border-white/20 dark:border-slate-700/50 shadow-[0_8px_32px_rgba(0,0,0,0.12)] dark:shadow-[0_8px_32px_rgba(0,0,0,0.4)]" 
+            style={{ 
+              borderRadius: 'inherit',
+              background: showSearch 
+                ? 'linear-gradient(135deg, rgba(255,255,255,0.8) 0%, rgba(255,255,255,0.6) 100%)' 
+                : 'linear-gradient(135deg, rgba(99,102,241,0.9) 0%, rgba(139,92,246,0.9) 100%)',
+            }}
+          />
+          
+          {/* Shimmer effect */}
+          <div 
+            className="absolute inset-0 opacity-30"
+            style={{
+              borderRadius: 'inherit',
+              background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)',
+              backgroundSize: '200% 100%',
+              animation: showSearch ? 'none' : 'shimmer 2s infinite',
+            }}
+          />
+
+          {/* Content */}
+          <AnimatePresence mode="wait">
+            {showSearch ? (
+              <motion.div
+                key="search-bar"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="relative p-3"
+              >
+                {/* Search input row */}
+                <div className="flex items-center gap-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <input 
+                      ref={searchInputRef}
+                      type="text" 
+                      placeholder="Search family member..." 
+                      value={searchInput}
+                      onChange={(e) => setSearchInput(e.target.value)}
+                      className="w-full pl-10 pr-4 py-2.5 bg-slate-100/80 dark:bg-slate-800/80 rounded-xl border-0 focus:ring-2 focus:ring-indigo-500 text-slate-900 dark:text-white placeholder-slate-400 transition-all outline-none text-sm"
+                    />
+                  </div>
+                  
+                  {/* Status indicator */}
+                  <div className="flex items-center gap-2">
+                    {isSearching && (
+                      <Loader2 className="w-5 h-5 animate-spin text-indigo-500" />
+                    )}
+                    {!isSearching && searchResult && (
+                      <motion.div 
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        className="w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/30"
+                      >
+                        <span className="text-white text-xs font-bold">✓</span>
+                      </motion.div>
+                    )}
+                  </div>
+                  
+                  {/* Close button */}
+                  <button
+                    onClick={toggleSearch}
+                    className="w-9 h-9 rounded-xl bg-slate-200/80 dark:bg-slate-700/80 flex items-center justify-center text-slate-600 dark:text-slate-300 hover:bg-slate-300/80 dark:hover:bg-slate-600/80 transition-colors active:scale-95"
+                  >
+                    <X size={18} />
+                  </button>
+                </div>
+                
+                {/* Search result preview */}
+                <AnimatePresence>
+                  {searchResult && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                      animate={{ opacity: 1, height: 'auto', marginTop: 12 }}
+                      exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div 
+                        className="p-3 bg-slate-100/80 dark:bg-slate-800/80 rounded-xl cursor-pointer hover:bg-slate-200/80 dark:hover:bg-slate-700/80 transition-colors"
+                        onClick={() => {
+                          setSelectedPerson(searchResult);
+                          toggleSearch();
+                        }}
+                      >
+                        <div className="flex items-center gap-3">
+                          <img 
+                            src={searchResult.avatar} 
+                            alt={searchResult.name}
+                            className="w-11 h-11 rounded-full object-cover border-2 border-indigo-500 shadow-lg"
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm text-slate-800 dark:text-white truncate">{searchResult.name}</p>
+                            <p className="text-xs text-indigo-600 dark:text-indigo-400 font-medium">{searchResult.role}</p>
+                          </div>
+                          <div className="text-slate-400">
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                            </svg>
+                          </div>
+                        </div>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+                
+                {/* No results message */}
+                {!isSearching && searchInput && !searchResult && (
+                  <motion.p 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="text-center text-sm text-slate-500 mt-3"
+                  >
+                    No family member found
+                  </motion.p>
+                )}
+              </motion.div>
+            ) : (
+              <motion.button
+                key="search-fab"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                onClick={toggleSearch}
+                className="relative w-full h-full flex items-center justify-center text-white"
+              >
+                <Search size={24} strokeWidth={2.5} />
+              </motion.button>
+            )}
+          </AnimatePresence>
+        </motion.div>
+      </div>
 
       {/* Permission Warning Toast */}
       {permissionWarning && (
