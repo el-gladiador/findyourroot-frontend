@@ -7,6 +7,18 @@ import ExpandedPersonCard from '@/components/ExpandedPersonCard';
 import AddPersonModal from '@/components/AddPersonModal';
 import { Person, canContribute, canEditDirectly, needsApproval } from '@/lib/types';
 
+// Performance: Throttle function for smooth updates
+const throttle = <T extends (...args: unknown[]) => void>(fn: T, ms: number) => {
+  let lastCall = 0;
+  return (...args: Parameters<T>) => {
+    const now = Date.now();
+    if (now - lastCall >= ms) {
+      lastCall = now;
+      fn(...args);
+    }
+  };
+};
+
 const TreeTab = () => {
   const familyData = useAppStore((state) => state.familyData);
   const clearTree = useAppStore((state) => state.clearTree);
@@ -27,14 +39,28 @@ const TreeTab = () => {
   const canDelete = user?.role === 'admin';
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
+  const transformRef = useRef<HTMLDivElement>(null);
   
-  // Zoom and Pan state
+  // Zoom and Pan state - use refs for immediate updates during gestures
   const [scale, setScale] = useState(1);
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
-  const [startPan, setStartPan] = useState({ x: 0, y: 0 });
+  
+  // Refs for gesture handling (avoid state updates during gestures)
+  const gestureState = useRef({
+    isPanning: false,
+    startPan: { x: 0, y: 0 },
+    currentTranslate: { x: 0, y: 0 },
+    currentScale: 1,
+  });
+  
+  // Keep refs in sync with state
+  useEffect(() => {
+    gestureState.current.currentTranslate = translate;
+    gestureState.current.currentScale = scale;
+  }, [translate, scale]);
+  
   const rafId = useRef<number | null>(null);
-  const pendingTransform = useRef<{ scale: number; translate: { x: number; y: number } } | null>(null);
   
   // Dynamic refs storage
   const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -174,197 +200,220 @@ const TreeTab = () => {
     setScale(newScale);
   };
 
-  // Pan handlers
+  // Optimized: Apply transform directly to DOM without React state update
+  const applyTransformToDOM = useCallback((x: number, y: number, s: number) => {
+    if (transformRef.current) {
+      transformRef.current.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${s})`;
+    }
+  }, []);
+
+  // Pan handlers - Optimized for performance
   const handleMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('.tree-node-clickable')) return;
+    
+    gestureState.current.isPanning = true;
+    gestureState.current.startPan = { 
+      x: e.clientX - gestureState.current.currentTranslate.x, 
+      y: e.clientY - gestureState.current.currentTranslate.y 
+    };
     setIsPanning(true);
-    setStartPan({ x: e.clientX - translate.x, y: e.clientY - translate.y });
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (!isPanning) return;
-    setTranslate({
-      x: e.clientX - startPan.x,
-      y: e.clientY - startPan.y
-    });
+    if (!gestureState.current.isPanning) return;
+    
+    const newX = e.clientX - gestureState.current.startPan.x;
+    const newY = e.clientY - gestureState.current.startPan.y;
+    
+    gestureState.current.currentTranslate = { x: newX, y: newY };
+    
+    // Direct DOM manipulation - no React state update during drag
+    applyTransformToDOM(newX, newY, gestureState.current.currentScale);
   };
 
   const handleMouseUp = () => {
-    setIsPanning(false);
-  };
-
-  // Apply pending transform with RAF for smooth updates
-  const applyTransform = () => {
-    if (pendingTransform.current) {
-      setScale(pendingTransform.current.scale);
-      setTranslate(pendingTransform.current.translate);
-      pendingTransform.current = null;
-    }
-    rafId.current = null;
-  };
-
-  const scheduleTransformUpdate = (newScale: number, newTranslate: { x: number; y: number }) => {
-    pendingTransform.current = { scale: newScale, translate: newTranslate };
-    if (rafId.current === null) {
-      rafId.current = requestAnimationFrame(applyTransform);
+    if (gestureState.current.isPanning) {
+      gestureState.current.isPanning = false;
+      setIsPanning(false);
+      // Sync React state with final position
+      setTranslate({ ...gestureState.current.currentTranslate });
     }
   };
 
   const handleTouchStart = (e: React.TouchEvent) => {
     if (e.touches.length === 1) {
-      // Pan only
       if ((e.target as HTMLElement).closest('.tree-node-clickable')) return;
       const touch = e.touches[0];
+      
+      gestureState.current.isPanning = true;
+      gestureState.current.startPan = { 
+        x: touch.clientX - gestureState.current.currentTranslate.x, 
+        y: touch.clientY - gestureState.current.currentTranslate.y 
+      };
       setIsPanning(true);
-      setStartPan({ x: touch.clientX - translate.x, y: touch.clientY - translate.y });
     }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 1 && isPanning) {
-      // Pan with RAF
+    if (e.touches.length === 1 && gestureState.current.isPanning) {
       const touch = e.touches[0];
-      const newTranslate = {
-        x: touch.clientX - startPan.x,
-        y: touch.clientY - startPan.y
-      };
-      scheduleTransformUpdate(scale, newTranslate);
+      const newX = touch.clientX - gestureState.current.startPan.x;
+      const newY = touch.clientY - gestureState.current.startPan.y;
+      
+      gestureState.current.currentTranslate = { x: newX, y: newY };
+      
+      // Direct DOM manipulation - no React state update during drag
+      applyTransformToDOM(newX, newY, gestureState.current.currentScale);
     }
   };
 
   const handleTouchEnd = () => {
-    setIsPanning(false);
-    
-    // Cancel any pending RAF
-    if (rafId.current !== null) {
-      cancelAnimationFrame(rafId.current);
-      rafId.current = null;
-      // Apply final transform
-      if (pendingTransform.current) {
-        setScale(pendingTransform.current.scale);
-        setTranslate(pendingTransform.current.translate);
-        pendingTransform.current = null;
-      }
+    if (gestureState.current.isPanning) {
+      gestureState.current.isPanning = false;
+      setIsPanning(false);
+      // Sync React state with final position
+      setTranslate({ ...gestureState.current.currentTranslate });
     }
   };
 
-  useEffect(() => {
-    const calculateLines = () => {
-      if (!containerRef.current) return;
+  // Memoized line calculation - only recalculates when familyData changes
+  const calculateLines = useCallback(() => {
+    if (!containerRef.current) return [];
+    
+    const currentScale = gestureState.current.currentScale;
+    const newLines: Array<{ x1: number; y1: number; x2: number; y2: number }> = [];
+    
+    const getNodePosition = (personId: string) => {
+      const el = nodeRefs.current.get(personId);
+      if (!el) return null;
       
-      const newLines: Array<{ x1: number; y1: number; x2: number; y2: number }> = [];
+      const img = el.querySelector('img');
+      if (!img) return null;
       
-      const getNodePosition = (personId: string) => {
-        const el = nodeRefs.current.get(personId);
-        if (!el) return null;
-        
-        const img = el.querySelector('img');
-        if (!img) return null;
-        
-        // Get position relative to the container (not viewport)
-        const containerRect = containerRef.current!.getBoundingClientRect();
-        const rect = img.getBoundingClientRect();
-        
-        // Calculate actual position in container's coordinate space (unscaled)
-        const x = (rect.left + rect.width / 2 - containerRect.left) / scale;
-        const y = (rect.top + rect.height / 2 - containerRect.top) / scale;
-        const bottom = (rect.bottom - containerRect.top) / scale;
-        const top = (rect.top - containerRect.top) / scale;
-        const left = (rect.left - containerRect.left) / scale;
-        const right = (rect.right - containerRect.left) / scale;
-        
-        return { x, y, bottom, top, left, right };
-      };
+      // Get position relative to the container (not viewport)
+      const containerRect = containerRef.current!.getBoundingClientRect();
+      const rect = img.getBoundingClientRect();
       
-      // Draw connections for each person with children
-      familyData.forEach(person => {
-        if (!person.children || person.children.length === 0) return;
+      // Calculate actual position in container's coordinate space (unscaled)
+      const x = (rect.left + rect.width / 2 - containerRect.left) / currentScale;
+      const y = (rect.top + rect.height / 2 - containerRect.top) / currentScale;
+      const bottom = (rect.bottom - containerRect.top) / currentScale;
+      const top = (rect.top - containerRect.top) / currentScale;
+      const left = (rect.left - containerRect.left) / currentScale;
+      const right = (rect.right - containerRect.left) / currentScale;
         
-        const spouse = findSpouse(person.id);
-        const personPos = getNodePosition(person.id);
-        const spousePos = spouse ? getNodePosition(spouse.id) : null;
-        const children = getChildren(person.id);
+      return { x, y, bottom, top, left, right };
+    };
+    
+    // Draw connections for each person with children
+    familyData.forEach(person => {
+      if (!person.children || person.children.length === 0) return;
+      
+      const spouse = findSpouse(person.id);
+      const personPos = getNodePosition(person.id);
+      const spousePos = spouse ? getNodePosition(spouse.id) : null;
+      const children = getChildren(person.id);
+      
+      if (!personPos) return;
+      
+      // If has spouse, draw horizontal line between them
+      if (spouse && spousePos) {
+        const leftPos = personPos.x < spousePos.x ? personPos : spousePos;
+        const rightPos = personPos.x < spousePos.x ? spousePos : personPos;
         
-        if (!personPos) return;
+        newLines.push({
+          x1: leftPos.right,
+          y1: leftPos.y,
+          x2: rightPos.left,
+          y2: rightPos.y
+        });
+      }
+      
+      // Draw lines to children
+      if (children.length > 0) {
+        const childPositions = children.map(child => ({
+          child,
+          pos: getNodePosition(child.id)
+        })).filter(c => c.pos !== null);
         
-        // If has spouse, draw horizontal line between them
-        if (spouse && spousePos) {
-          const leftPos = personPos.x < spousePos.x ? personPos : spousePos;
-          const rightPos = personPos.x < spousePos.x ? spousePos : personPos;
-          
+        if (childPositions.length === 0) return;
+        
+        // Calculate parent midpoint
+        const parentMidX = spousePos ? (personPos.x + spousePos.x) / 2 : personPos.x;
+        const parentBottom = spousePos ? Math.max(personPos.bottom, spousePos.bottom) : personPos.bottom;
+        
+        // Find leftmost and rightmost children
+        const sortedChildren = [...childPositions].sort((a, b) => a.pos!.x - b.pos!.x);
+        const leftmostChild = sortedChildren[0].pos!;
+        const rightmostChild = sortedChildren[sortedChildren.length - 1].pos!;
+        
+        const childrenHorizontalY = leftmostChild.top - 16;
+        
+        // Vertical line down from parent(s)
+        newLines.push({
+          x1: parentMidX,
+          y1: parentBottom,
+          x2: parentMidX,
+          y2: childrenHorizontalY
+        });
+        
+        // Horizontal line across children (if multiple)
+        if (childPositions.length > 1) {
           newLines.push({
-            x1: leftPos.right,
-            y1: leftPos.y,
-            x2: rightPos.left,
-            y2: rightPos.y
-          });
-        }
-        
-        // Draw lines to children
-        if (children.length > 0) {
-          const childPositions = children.map(child => ({
-            child,
-            pos: getNodePosition(child.id)
-          })).filter(c => c.pos !== null);
-          
-          if (childPositions.length === 0) return;
-          
-          // Calculate parent midpoint
-          const parentMidX = spousePos ? (personPos.x + spousePos.x) / 2 : personPos.x;
-          const parentBottom = spousePos ? Math.max(personPos.bottom, spousePos.bottom) : personPos.bottom;
-          
-          // Find leftmost and rightmost children
-          const sortedChildren = [...childPositions].sort((a, b) => a.pos!.x - b.pos!.x);
-          const leftmostChild = sortedChildren[0].pos!;
-          const rightmostChild = sortedChildren[sortedChildren.length - 1].pos!;
-          
-          const childrenHorizontalY = leftmostChild.top - 16;
-          
-          // Vertical line down from parent(s)
-          newLines.push({
-            x1: parentMidX,
-            y1: parentBottom,
-            x2: parentMidX,
+            x1: leftmostChild.x,
+            y1: childrenHorizontalY,
+            x2: rightmostChild.x,
             y2: childrenHorizontalY
           });
-          
-          // Horizontal line across children (if multiple)
-          if (childPositions.length > 1) {
+        }
+        
+        // Vertical lines down to each child
+        childPositions.forEach(({ pos }) => {
+          if (pos) {
             newLines.push({
-              x1: leftmostChild.x,
+              x1: pos.x,
               y1: childrenHorizontalY,
-              x2: rightmostChild.x,
-              y2: childrenHorizontalY
+              x2: pos.x,
+              y2: pos.top
             });
           }
-          
-          // Vertical lines down to each child
-          childPositions.forEach(({ pos }) => {
-            if (pos) {
-              newLines.push({
-                x1: pos.x,
-                y1: childrenHorizontalY,
-                x2: pos.x,
-                y2: pos.top
-              });
-            }
-          });
-        }
-      });
-      
+        });
+      }
+    });
+    
+    return newLines;
+  }, [familyData, findSpouse, getChildren]);
+
+  // Update lines only when not panning and when familyData/scale changes
+  useEffect(() => {
+    if (isPanning) return;
+    
+    const timer = setTimeout(() => {
+      const newLines = calculateLines();
       setLines(newLines);
-    };
+    }, 50);
     
-    // Calculate on mount and after a small delay to ensure DOM is ready
-    const timer = setTimeout(calculateLines, 100);
-    calculateLines();
+    return () => clearTimeout(timer);
+  }, [familyData, scale, isPanning, calculateLines]);
+
+  // Initial line calculation
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const newLines = calculateLines();
+      setLines(newLines);
+    }, 100);
     
-    window.addEventListener('resize', calculateLines);
+    const handleResize = throttle(() => {
+      const newLines = calculateLines();
+      setLines(newLines);
+    }, 100);
+    
+    window.addEventListener('resize', handleResize);
     return () => {
-      window.removeEventListener('resize', calculateLines);
+      window.removeEventListener('resize', handleResize);
       clearTimeout(timer);
     };
-  }, [familyData, scale]);
+  }, [calculateLines]);
 
   // Cleanup RAF on unmount
   useEffect(() => {
@@ -473,19 +522,21 @@ const TreeTab = () => {
       style={{ cursor: hasModalOpen ? 'default' : (isPanning ? 'grabbing' : 'grab'), touchAction: 'none' }}
     >
       <div 
-        className="absolute top-1/2 left-1/2"
+        ref={transformRef}
+        className="absolute top-1/2 left-1/2 gpu-accelerated"
         style={{
           transform: `translate(calc(-50% + ${translate.x}px), calc(-50% + ${translate.y}px)) scale(${scale})`,
           transformOrigin: 'center',
-          transition: isPanning ? 'none' : 'transform 0.1s ease-out',
-          willChange: 'transform'
+          transition: isPanning ? 'none' : 'transform 0.15s ease-out',
+          willChange: 'transform',
+          backfaceVisibility: 'hidden',
         }}
       >
         <div ref={containerRef} className="relative flex flex-col items-center gap-8">
           {/* SVG Layer for connections */}
           <svg 
             className="absolute inset-0 w-full h-full pointer-events-none" 
-            style={{ zIndex: 0, minHeight: '100%' }}
+            style={{ zIndex: 0, minHeight: '100%', overflow: 'visible' }}
           >
             {lines.map((line, idx) => (
               <line
