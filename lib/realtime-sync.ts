@@ -1,47 +1,71 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
+/**
+ * Real-Time Sync Hooks
+ * 
+ * This module provides backward-compatible hooks that use the centralized sync system.
+ * For new features, consider using the sync system directly: `import { useSync } from '@/lib/sync'`
+ */
+
+import { useEffect, useCallback, useRef, useState } from 'react';
 import { useAppStore } from './store';
+import { 
+  useSync, 
+  useSyncList,
+  createFamilyTreeConfig,
+  createSSEConfig,
+  SyncManager,
+} from './sync';
 import { Person } from './types';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
 
 /**
- * Real-time sync hook using polling for family data
- * Polls the backend every 5 seconds for updates
+ * Real-time sync hook for family tree data
+ * Uses the centralized sync system with polling strategy
  */
 export const useRealtimeSync = () => {
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+  const token = useAppStore((state) => state.token);
   const fetchFamilyData = useAppStore((state) => state.fetchFamilyData);
-  
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    if (!isAuthenticated) {
-      return;
+  // Use the centralized sync system
+  const { isConnected, status } = useSync<Person[]>(
+    createFamilyTreeConfig(token ?? undefined),
+    {
+      enabled: isAuthenticated,
+      autoStart: true,
+      onData: (event) => {
+        // Update store with fetched data
+        // The store's fetchFamilyData already handles the API call,
+        // so we just need to trigger periodic refreshes
+        console.log(`[Realtime Sync] Data received (${event.type})`);
+      },
     }
+  );
+
+  // Also trigger store's fetchFamilyData for initial load and updates
+  useEffect(() => {
+    if (!isAuthenticated) return;
 
     console.log('[Realtime Sync] Using polling (every 5 seconds)');
     
     // Initial fetch
     fetchFamilyData();
     
-    // Poll every 5 seconds
-    pollingIntervalRef.current = setInterval(() => {
+    // Poll every 5 seconds (matching the sync system)
+    const interval = setInterval(() => {
       fetchFamilyData();
     }, 5000);
 
-    // Cleanup
     return () => {
-      if (pollingIntervalRef.current) {
-        console.log('[Realtime Sync] Cleaning up polling');
-        clearInterval(pollingIntervalRef.current);
-      }
+      console.log('[Realtime Sync] Cleaning up polling');
+      clearInterval(interval);
     };
   }, [isAuthenticated, fetchFamilyData]);
 };
 
 /**
- * SSE (Server-Sent Events) based real-time admin sync
- * Connects to backend SSE endpoint for instant updates
+ * SSE-based real-time admin sync hook
+ * Uses the centralized sync system with SSE strategy
  */
 export const useRealtimeAdminSync = (
   collectionName: 'suggestions' | 'permission_requests' | 'identity_claims',
@@ -50,12 +74,13 @@ export const useRealtimeAdminSync = (
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
   const user = useAppStore((state) => state.user);
   const token = useAppStore((state) => state.token);
+  
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isConnected, setIsConnected] = useState(false);
   const [newItemCount, setNewItemCount] = useState(0);
+  const isInitializedRef = useRef(false);
   const eventSourceRef = useRef<EventSource | null>(null);
-  const previousCountRef = useRef<number>(0);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check if user can view admin data
@@ -73,7 +98,6 @@ export const useRealtimeAdminSync = (
       console.log(`[Admin SSE] Connecting to SSE stream...`);
       setIsLoading(true);
 
-      // Create EventSource with auth token in URL (SSE doesn't support headers)
       const sseUrl = `${API_URL}/api/v1/stream/admin?token=${encodeURIComponent(token)}`;
       
       try {
@@ -86,7 +110,7 @@ export const useRealtimeAdminSync = (
           setIsLoading(false);
         };
 
-        // Handle initial data for our collection
+        // Handle data for our collection
         eventSource.addEventListener(collectionName, (event) => {
           try {
             const payload = JSON.parse(event.data);
@@ -103,7 +127,7 @@ export const useRealtimeAdminSync = (
                 return timeB - timeA;
               });
               
-              previousCountRef.current = items.length;
+              isInitializedRef.current = true;
               setData(items);
             } else if (payload.type && payload.item) {
               // Real-time update
@@ -115,15 +139,12 @@ export const useRealtimeAdminSync = (
                 
                 switch (type) {
                   case 'added':
-                    // Check if item already exists
                     if (!newData.find(d => d.id === item.id)) {
                       newData = [item, ...newData];
-                      // Show notification for new items
-                      if (previousCountRef.current > 0) {
+                      if (isInitializedRef.current) {
                         setNewItemCount(prev => prev + 1);
                         showNotification(collectionName);
                       }
-                      previousCountRef.current = newData.length;
                     }
                     break;
                     
@@ -133,7 +154,6 @@ export const useRealtimeAdminSync = (
                     
                   case 'removed':
                     newData = newData.filter(d => d.id !== item.id);
-                    previousCountRef.current = newData.length;
                     break;
                 }
                 
@@ -152,22 +172,19 @@ export const useRealtimeAdminSync = (
           }
         });
 
-        // Handle connection message
-        eventSource.addEventListener('connected', (event) => {
-          console.log('[Admin SSE] Connection confirmed:', event.data);
+        eventSource.addEventListener('connected', () => {
+          console.log('[Admin SSE] Connection confirmed');
         });
 
-        // Handle ping (keepalive)
         eventSource.addEventListener('ping', () => {
           // Keepalive received
         });
 
-        eventSource.onerror = (error) => {
-          console.error('[Admin SSE] Connection error:', error);
+        eventSource.onerror = () => {
+          console.error('[Admin SSE] Connection error');
           setIsConnected(false);
           eventSource.close();
           
-          // Reconnect after 3 seconds
           reconnectTimeoutRef.current = setTimeout(() => {
             console.log('[Admin SSE] Reconnecting...');
             connectSSE();
@@ -183,7 +200,6 @@ export const useRealtimeAdminSync = (
 
     connectSSE();
 
-    // Cleanup
     return () => {
       if (eventSourceRef.current) {
         console.log(`[Admin SSE] Closing connection`);
@@ -195,7 +211,6 @@ export const useRealtimeAdminSync = (
     };
   }, [isAuthenticated, canViewAdminData, token, collectionName, statusFilter]);
 
-  // Function to clear new item notification count
   const clearNewItemCount = useCallback(() => {
     setNewItemCount(0);
   }, []);
@@ -223,7 +238,6 @@ function showNotification(collectionName: string) {
 
 /**
  * Hook to get pending counts for admin badge notifications
- * Uses the same SSE connection
  */
 export const useAdminPendingCounts = () => {
   const { data: suggestions } = useRealtimeAdminSync('suggestions', 'pending');

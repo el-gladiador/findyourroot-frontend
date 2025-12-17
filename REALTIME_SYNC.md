@@ -2,194 +2,171 @@
 
 ## Overview
 
-The app now supports **automatic real-time updates** across all users' devices. The implementation is **database-agnostic** and uses the optimal strategy for each backend:
+The app supports **automatic real-time updates** across all users' devices using a combination of:
 
-### 🔥 Firestore Backend (Production)
-- Uses **Firestore real-time listeners**
-- Instant updates across all devices
-- Efficient, no polling needed
-- Automatic reconnection
+1. **SSE (Server-Sent Events)** - For admin data (suggestions, permission requests, identity claims)
+2. **Polling** - For family tree data (every 5 seconds)
 
-### 🐘 PostgreSQL Backend (Development/Alternative)
-- Uses **polling** (every 5 seconds)
-- Works with any database
-- Simple, reliable
-- No additional setup needed
+**No Firebase SDK required!** - The backend uses Cloud Firestore directly via the Admin SDK.
 
 ## How It Works
 
-The system **automatically detects** which backend you're using:
+### Family Tree Data (Polling)
 
 ```
 User makes a change (add/edit/delete)
          ↓
-Change saved to backend
+Change saved to backend (Cloud Firestore)
          ↓
-    ┌────────────────┐
-    │  Backend Type? │
-    └────────────────┘
-           ↓
-    ┌──────┴──────┐
-    │             │
-Firestore      Other DB
-    │             │
-Real-time    Polling
-Listener    (5 seconds)
-    │             │
-    └──────┬──────┘
-           ↓
+Other users poll every 5 seconds
+         ↓
 All users see the update
+```
+
+### Admin Data (SSE - Real-time)
+
+```
+User submits suggestion/request/claim
+         ↓
+Saved to Cloud Firestore
+         ↓
+Backend's Firestore snapshot listener detects change
+         ↓
+Backend broadcasts via SSE to all connected admins
+         ↓
+⚡ Admins see update instantly
+```
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                       Frontend (Next.js)                      │
+│                                                               │
+│  ┌─────────────────┐    ┌──────────────────────────────────┐ │
+│  │ useRealtimeSync │    │ useRealtimeAdminSync             │ │
+│  │   (Polling)     │    │   (SSE Connection)               │ │
+│  │  Every 5 sec    │    │   /api/v1/stream/admin           │ │
+│  └────────┬────────┘    └──────────────┬───────────────────┘ │
+│           │                            │                      │
+└───────────┼────────────────────────────┼──────────────────────┘
+            │                            │
+            │  REST API                  │  SSE Stream
+            ▼                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                    Backend (Go + Gin)                        │
+│                                                               │
+│  ┌─────────────────┐    ┌──────────────────────────────────┐ │
+│  │   REST Handlers │    │   SSE Handler                    │ │
+│  │   (tree.go)     │    │   (sse.go)                       │ │
+│  │                 │    │   - Firestore Snapshot Listeners │ │
+│  │                 │    │   - Broadcasts to connected      │ │
+│  │                 │    │     admin clients                │ │
+│  └────────┬────────┘    └──────────────┬───────────────────┘ │
+│           │                            │                      │
+└───────────┼────────────────────────────┼──────────────────────┘
+            │                            │
+            ▼                            ▼
+┌─────────────────────────────────────────────────────────────┐
+│                   Cloud Firestore (GCP)                      │
+│                                                               │
+│   Collections: people, suggestions, permission_requests,     │
+│                identity_claims, users                        │
+└─────────────────────────────────────────────────────────────┘
 ```
 
 ## Setup
 
-### Option 1: Firestore Real-Time (Recommended for Production)
-
-1. **Get Firebase Config:**
-   - Go to [Firebase Console](https://console.firebase.google.com)
-   - Select your project
-   - Go to Project Settings > General
-   - Scroll to "Your apps" section
-   - Copy the config values
-
-2. **Configure Frontend:**
+1. **Configure API URL:**
    ```bash
    cd frontend
    cp .env.example .env.local
    ```
 
-3. **Add Firebase credentials to `.env.local`:**
+2. **Set your backend URL in `.env.local`:**
    ```env
-   NEXT_PUBLIC_FIREBASE_API_KEY=your-api-key
-   NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
-   NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
-   NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET=your-project.appspot.com
-   NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID=123456789
-   NEXT_PUBLIC_FIREBASE_APP_ID=1:123456789:web:abcdef
+   NEXT_PUBLIC_API_URL=https://your-backend-url.run.app
    ```
 
-4. **Restart the frontend:**
+3. **Start the frontend:**
    ```bash
    npm run dev
    ```
 
-   You'll see in console: `[Realtime Sync] Using Firestore real-time listeners`
-
-### Option 2: Polling (Works with Any Backend)
-
-If you don't configure Firebase, the app automatically uses polling:
-
-1. **No configuration needed!**
-2. The app will poll every 5 seconds
-3. You'll see in console: `[Realtime Sync] Using polling (every 5 seconds)`
-
-This works with:
-- PostgreSQL
-- MySQL
-- MongoDB
-- Any other database
-
 ## Testing Real-Time Sync
 
-1. **Open the app in 2 browser windows** (or 2 devices)
-2. **Login on both**
-3. **Add/edit/delete a person in one window**
-4. **Watch the other window update automatically!**
+### Family Data (Polling):
+1. Open the app in 2 browser windows
+2. Login on both
+3. Add/edit/delete a person in one window
+4. Watch the other window update within 5 seconds
 
-### Firestore:
-- ⚡ Updates appear **instantly** (< 1 second)
+### Admin Data (SSE - Real-time):
+1. Open admin panel in 2 browser windows (as admin users)
+2. Submit a suggestion from a regular user
+3. Both admin windows should see it **instantly**
 
-### Polling:
-- 🔄 Updates appear within **5 seconds**
-
-## Architecture Benefits
-
-✅ **Database-agnostic** - Works with any backend  
-✅ **No code changes** needed when switching databases  
-✅ **Optimal for each environment** - Firestore gets real-time, others get polling  
-✅ **Fallback mechanism** - If Firestore fails, automatically falls back to polling  
-✅ **Future-proof** - Easy to add WebSockets or other sync methods later  
+Console logs to verify:
+- `[Realtime Sync] Using polling (every 5 seconds)` - Family data sync active
+- `[Admin SSE] Connected` - SSE stream active for admin data
 
 ## File Structure
 
 ```
 frontend/
 ├── lib/
-│   ├── firebase.ts          # Firebase initialization (optional)
-│   ├── realtime-sync.ts     # Smart sync hook (Firestore + Polling)
-│   └── store.ts             # Updated with setFamilyData method
+│   ├── realtime-sync.ts     # Sync hooks (polling + SSE)
+│   ├── api.ts               # REST API client
+│   └── store.ts             # Zustand store
 ├── app/
-│   └── page.tsx             # Enabled real-time sync
-└── .env.example             # Firebase config template
+│   └── page.tsx             # Uses useRealtimeSync()
+└── components/
+    └── tabs/
+        └── AdminTab.tsx     # Uses useRealtimeAdminSync()
+
+backend/
+├── internal/
+│   └── handlers/
+│       ├── sse.go           # SSE handler with Firestore listeners
+│       ├── tree.go          # Tree REST endpoints
+│       └── ...
 ```
-
-## Switching Databases
-
-The system automatically adapts when you change databases:
-
-1. **Switch backend to PostgreSQL:**
-   - Remove Firebase config from `.env.local`
-   - Restart frontend
-   - Automatically uses polling ✅
-
-2. **Switch backend to Firestore:**
-   - Add Firebase config to `.env.local`
-   - Restart frontend
-   - Automatically uses real-time listeners ✅
-
-No code changes required!
 
 ## Performance
 
-### Firestore Real-Time
-- **Bandwidth:** Minimal (only changed documents)
-- **Latency:** < 1 second
-- **Cost:** Free tier: 50K document reads/day
-
-### Polling
+### Family Data (Polling)
 - **Bandwidth:** ~12 requests/minute per user
 - **Latency:** Up to 5 seconds
-- **Cost:** Free (uses existing REST API)
+- **Cost:** Standard Cloud Run + Firestore costs
+
+### Admin Data (SSE)
+- **Bandwidth:** Minimal (event-driven)
+- **Latency:** < 1 second
+- **Cost:** Minimal (single connection per admin)
 
 ## Troubleshooting
 
 ### "Real-time updates not working"
 
 **Check console logs:**
-- `[Realtime Sync] Using Firestore real-time listeners` → Firestore is active
-- `[Realtime Sync] Using polling (every 5 seconds)` → Polling is active
+- `[Realtime Sync] Using polling (every 5 seconds)` → Polling active
+- `[Admin SSE] Connected` → SSE active
 
-**If using Firestore:**
-1. Verify Firebase config in `.env.local`
-2. Check Firestore security rules allow read access
-3. Verify backend is writing to Firestore
+**Common issues:**
+1. **CORS errors** - Ensure backend allows your frontend origin
+2. **SSE disconnects** - Auto-reconnects after 3 seconds
+3. **Token expiry** - Re-login to get fresh token
 
-**If using Polling:**
-1. Check network tab - should see API calls every 5 seconds
-2. Verify backend API is responding
+### "Admin SSE not connecting"
 
-### "Permission denied" (Firestore)
-
-Update Firestore security rules:
-
-```javascript
-rules_version = '2';
-service cloud.firestore {
-  match /databases/{database}/documents {
-    match /people/{personId} {
-      allow read: if request.auth != null;
-      allow write: if request.auth != null;
-    }
-  }
-}
-```
+1. Verify you're logged in as admin/co-admin
+2. Check network tab for SSE connection to `/api/v1/stream/admin`
+3. Ensure backend is running and accessible
 
 ## Future Enhancements
 
-This architecture makes it easy to add:
-- 🔌 WebSocket support (for database-agnostic real-time)
-- 📡 Server-Sent Events (SSE)
-- ⚡ Optimistic updates
+Possible improvements:
+- 🔌 WebSocket support for bidirectional communication
+- ⚡ Optimistic updates for instant UI feedback
 - 🔄 Offline support with sync queue
-
-The modular design means you can swap sync strategies without touching the rest of the codebase!
+- 📱 Push notifications for mobile
