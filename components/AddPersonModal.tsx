@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, User, Calendar, MapPin, FileText, UserPlus, Image, Wand2 } from 'lucide-react';
+import { X, User, Calendar, MapPin, FileText, UserPlus, Image, Wand2, Clock } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 
 interface AddPersonModalProps {
   onClose: () => void;
   parentId?: string;
+  onSuccess?: (message: string) => void;
+  isContributor?: boolean;
 }
 
 // Random data generators
@@ -43,8 +45,9 @@ const generateRandomData = () => {
   };
 };
 
-const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId }) => {
+const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSuccess, isContributor = false }) => {
   const addPerson = useAppStore((state) => state.addPerson);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [formData, setFormData] = useState(generateRandomData());
 
@@ -57,11 +60,12 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId }) =>
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setIsSubmitting(true);
     
-    console.log('[AddPersonModal] Creating person with parentId:', parentId);
+    console.log('[AddPersonModal] Creating person with parentId:', parentId, 'isContributor:', isContributor);
     
     // Let backend handle avatar generation if not provided
-    await addPerson({
+    const result = await addPerson({
       name: formData.name,
       role: formData.role,
       birth: formData.birth,
@@ -70,6 +74,13 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId }) =>
       avatar: formData.avatar, // Send empty string if not set - backend will generate default
       children: [],
     }, parentId);
+
+    setIsSubmitting(false);
+    
+    if (result.isSuggestion && result.message) {
+      // Show success message for suggestions
+      onSuccess?.(result.message);
+    }
 
     onClose();
   };
@@ -86,10 +97,21 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId }) =>
         {/* Header */}
         <div className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-5 py-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
-              <UserPlus size={18} className="text-indigo-600 dark:text-indigo-400" />
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center ${isContributor ? 'bg-amber-100 dark:bg-amber-900/30' : 'bg-indigo-100 dark:bg-indigo-900/30'}`}>
+              {isContributor ? (
+                <Clock size={18} className="text-amber-600 dark:text-amber-400" />
+              ) : (
+                <UserPlus size={18} className="text-indigo-600 dark:text-indigo-400" />
+              )}
             </div>
-            <h2 className="text-lg font-bold text-slate-900 dark:text-white">Add Family Member</h2>
+            <div>
+              <h2 className="text-lg font-bold text-slate-900 dark:text-white">
+                {isContributor ? 'Suggest Family Member' : 'Add Family Member'}
+              </h2>
+              {isContributor && (
+                <p className="text-xs text-amber-600 dark:text-amber-400">Requires admin approval</p>
+              )}
+            </div>
           </div>
           <button 
             onClick={onClose}
@@ -203,15 +225,37 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId }) =>
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors active:scale-95"
+              disabled={isSubmitting}
+              className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors active:scale-95 disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               type="submit"
-              className="flex-1 px-4 py-2.5 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700 transition-colors active:scale-95"
+              disabled={isSubmitting}
+              className={`flex-1 px-4 py-2.5 text-white rounded-lg font-medium transition-colors active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 ${
+                isContributor 
+                  ? 'bg-amber-600 hover:bg-amber-700' 
+                  : 'bg-indigo-600 hover:bg-indigo-700'
+              }`}
             >
-              Add Person
+              {isSubmitting ? (
+                <>
+                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  {isContributor ? 'Submitting...' : 'Adding...'}
+                </>
+              ) : (
+                <>
+                  {isContributor ? (
+                    <>
+                      <Clock size={18} />
+                      Submit Suggestion
+                    </>
+                  ) : (
+                    'Add Person'
+                  )}
+                </>
+              )}
             </button>
           </div>
         </form>

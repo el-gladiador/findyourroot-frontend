@@ -5,7 +5,7 @@ import { useAppStore } from '@/lib/store';
 import TreeNode from '@/components/TreeNode';
 import ExpandedPersonCard from '@/components/ExpandedPersonCard';
 import AddPersonModal from '@/components/AddPersonModal';
-import { Person } from '@/lib/types';
+import { Person, canContribute, canEditDirectly, needsApproval } from '@/lib/types';
 
 const TreeTab = () => {
   const familyData = useAppStore((state) => state.familyData);
@@ -16,9 +16,14 @@ const TreeTab = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [parentForNewPerson, setParentForNewPerson] = useState<string | undefined>(undefined);
   const [permissionWarning, setPermissionWarning] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
-  // Check if user can edit
-  const canEdit = user?.role === 'editor' || user?.role === 'admin';
+  // Check if user can contribute (contributors and above can use buttons)
+  const userCanContribute = user?.role ? canContribute(user.role) : false;
+  // Check if user can edit directly (editors and above)
+  const userCanEditDirectly = user?.role ? canEditDirectly(user.role) : false;
+  // Check if user is contributor (needs approval for changes)
+  const isContributor = user?.role ? needsApproval(user.role) : false;
   const canDelete = user?.role === 'admin';
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -69,13 +74,19 @@ const TreeTab = () => {
   };
 
   const handleAddClick = (parentId?: string) => {
-    if (!canEdit) {
-      setPermissionWarning('You need Editor or Admin permissions to modify the tree. Please request permissions from an administrator.');
+    if (!userCanContribute) {
+      setPermissionWarning('You need at least Contributor permissions to add family members. Please request permissions from an administrator.');
       setTimeout(() => setPermissionWarning(null), 5000);
       return;
     }
     setParentForNewPerson(parentId);
     setShowAddModal(true);
+  };
+
+  // Show success message (e.g., after suggestion is submitted)
+  const showSuccess = (message: string) => {
+    setSuccessMessage(message);
+    setTimeout(() => setSuccessMessage(null), 5000);
   };
 
   const handleClearTree = async () => {
@@ -381,7 +392,7 @@ const TreeTab = () => {
               person={person} 
               onClick={() => setSelectedPerson(person)}
               onAddChild={() => handleAddClick(person.id)}
-              canEdit={canEdit}
+              canEdit={userCanContribute}
               isSelected={selectedPerson?.id === person.id}
             />
           </div>
@@ -398,7 +409,7 @@ const TreeTab = () => {
                   isSpouse 
                   onClick={() => setSelectedPerson(spouse)}
                   onAddChild={() => handleAddClick(spouse.id)}
-                  canEdit={canEdit}
+                  canEdit={userCanContribute}
                   isSelected={selectedPerson?.id === spouse.id}
                 />
               </div>
@@ -423,15 +434,22 @@ const TreeTab = () => {
           <p className="text-slate-600 dark:text-slate-400 mb-4">No family members yet</p>
           <button
             onClick={() => handleAddClick()}
-            disabled={!canEdit}
+            disabled={!userCanContribute}
             className="px-6 py-3 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            {canEdit ? 'Add First Person' : 'View Only - No Edit Permission'}
+            {userCanContribute 
+              ? (isContributor ? 'Suggest First Person' : 'Add First Person') 
+              : 'View Only - No Edit Permission'}
           </button>
         </div>
         
         {showAddModal && (
-          <AddPersonModal onClose={() => { setShowAddModal(false); setParentForNewPerson(undefined); }} parentId={parentForNewPerson} />
+          <AddPersonModal 
+            onClose={() => { setShowAddModal(false); setParentForNewPerson(undefined); }} 
+            parentId={parentForNewPerson}
+            onSuccess={showSuccess}
+            isContributor={isContributor}
+          />
         )}
       </div>
     );
@@ -548,6 +566,23 @@ const TreeTab = () => {
         </div>
       )}
 
+      {/* Success Message Toast */}
+      {successMessage && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-[60] animate-in fade-in slide-in-from-top-2">
+          <div className="bg-green-50 dark:bg-green-900/20 border-2 border-green-500 dark:border-green-600 text-green-900 dark:text-green-200 px-6 py-4 rounded-lg shadow-xl max-w-md">
+            <div className="flex items-start gap-3">
+              <svg className="w-6 h-6 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <div>
+                <h4 className="font-semibold mb-1">Success</h4>
+                <p className="text-sm">{successMessage}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
     
     {/* Expanded Person Card with Shared Element Transition */}
@@ -566,7 +601,9 @@ const TreeTab = () => {
             handleAddClick(selectedPerson.id);
             setSelectedPerson(null);
           }}
-          canEdit={canEdit}
+          canEdit={userCanContribute}
+          isContributor={isContributor}
+          onSuccess={showSuccess}
         />
       )}
     </AnimatePresence>
@@ -579,6 +616,8 @@ const TreeTab = () => {
           setParentForNewPerson(undefined);
         }} 
         parentId={parentForNewPerson}
+        onSuccess={showSuccess}
+        isContributor={isContributor}
       />
     )}
     </>

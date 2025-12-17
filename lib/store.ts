@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { TabType, Person, User } from './types';
+import { TabType, Person, User, Suggestion, needsApproval, canEditDirectly } from './types';
 import { ApiClient } from './api';
 
 interface AppState {
@@ -29,10 +29,13 @@ interface AppState {
   familyData: Person[];
   isLoadingData: boolean;
   fetchFamilyData: () => Promise<void>;
-  addPerson: (person: Omit<Person, 'id'>, parentId?: string) => Promise<string | null>;
-  removePerson: (id: string) => Promise<boolean>;
-  updatePerson: (id: string, updates: Partial<Person>) => Promise<boolean>;
+  addPerson: (person: Omit<Person, 'id'>, parentId?: string) => Promise<{ id: string | null; isSuggestion: boolean; message?: string }>;
+  removePerson: (id: string) => Promise<{ success: boolean; isSuggestion: boolean; message?: string }>;
+  updatePerson: (id: string, updates: Partial<Person>) => Promise<{ success: boolean; isSuggestion: boolean; message?: string }>;
   clearTree: () => Promise<boolean>;
+  
+  // Suggestion methods
+  createSuggestion: (type: 'add' | 'edit' | 'delete', targetPersonId: string, personData?: any, message?: string) => Promise<{ success: boolean; message?: string }>;
 }
 
 // Helper to apply theme to document
@@ -186,45 +189,109 @@ export const useAppStore = create<AppState>()(
       },
       
       addPerson: async (person, parentId) => {
-        if (!get().isAuthenticated) return null;
+        const user = get().user;
+        if (!get().isAuthenticated || !user) return { id: null, isSuggestion: false };
         
+        // Contributors create suggestions instead of direct additions
+        if (needsApproval(user.role)) {
+          const response = await ApiClient.createSuggestion({
+            type: 'add',
+            target_person_id: parentId || '',
+            person_data: {
+              name: person.name,
+              role: person.role,
+              birth: person.birth,
+              location: person.location,
+              avatar: person.avatar,
+              bio: person.bio,
+            },
+            message: 'Add new family member',
+          });
+          
+          if (response.data) {
+            return { id: null, isSuggestion: true, message: 'Your suggestion to add this person has been submitted for approval.' };
+          }
+          return { id: null, isSuggestion: true, message: response.error || 'Failed to submit suggestion' };
+        }
+        
+        // Editors and above can add directly
         const response = await ApiClient.createPerson(person, parentId);
         
         if (response.data) {
           // Refetch data to ensure UI is updated with parent-child relationship
           await get().fetchFamilyData();
-          return response.data.id;
+          return { id: response.data.id, isSuggestion: false };
         }
         
-        return null;
+        return { id: null, isSuggestion: false, message: response.error };
       },
       
       removePerson: async (id) => {
-        if (!get().isAuthenticated) return false;
+        const user = get().user;
+        if (!get().isAuthenticated || !user) return { success: false, isSuggestion: false };
         
+        // Contributors create suggestions instead of direct deletions
+        if (needsApproval(user.role)) {
+          const response = await ApiClient.createSuggestion({
+            type: 'delete',
+            target_person_id: id,
+            message: 'Remove family member',
+          });
+          
+          if (response.data) {
+            return { success: true, isSuggestion: true, message: 'Your suggestion to remove this person has been submitted for approval.' };
+          }
+          return { success: false, isSuggestion: true, message: response.error || 'Failed to submit suggestion' };
+        }
+        
+        // Editors and above can delete directly
         const response = await ApiClient.deletePerson(id);
         
         if (!response.error) {
           // Refetch data to ensure UI is updated
           await get().fetchFamilyData();
-          return true;
+          return { success: true, isSuggestion: false };
         }
         
-        return false;
+        return { success: false, isSuggestion: false, message: response.error };
       },
       
       updatePerson: async (id, updates) => {
-        if (!get().isAuthenticated) return false;
+        const user = get().user;
+        if (!get().isAuthenticated || !user) return { success: false, isSuggestion: false };
         
+        // Contributors create suggestions instead of direct updates
+        if (needsApproval(user.role)) {
+          const response = await ApiClient.createSuggestion({
+            type: 'edit',
+            target_person_id: id,
+            person_data: {
+              name: updates.name || '',
+              role: updates.role || '',
+              birth: updates.birth || '',
+              location: updates.location || '',
+              avatar: updates.avatar,
+              bio: updates.bio,
+            },
+            message: 'Edit family member',
+          });
+          
+          if (response.data) {
+            return { success: true, isSuggestion: true, message: 'Your suggestion to edit this person has been submitted for approval.' };
+          }
+          return { success: false, isSuggestion: true, message: response.error || 'Failed to submit suggestion' };
+        }
+        
+        // Editors and above can update directly
         const response = await ApiClient.updatePerson(id, updates);
         
         if (response.data) {
           // Refetch data to ensure UI is updated
           await get().fetchFamilyData();
-          return true;
+          return { success: true, isSuggestion: false };
         }
         
-        return false;
+        return { success: false, isSuggestion: false, message: response.error };
       },
       
       clearTree: async () => {
@@ -238,6 +305,23 @@ export const useAppStore = create<AppState>()(
         }
         
         return false;
+      },
+      
+      createSuggestion: async (type, targetPersonId, personData, message) => {
+        if (!get().isAuthenticated) return { success: false, message: 'Not authenticated' };
+        
+        const response = await ApiClient.createSuggestion({
+          type,
+          target_person_id: targetPersonId,
+          person_data: personData,
+          message,
+        });
+        
+        if (response.data) {
+          return { success: true, message: response.data.message || 'Suggestion submitted successfully' };
+        }
+        
+        return { success: false, message: response.error || 'Failed to create suggestion' };
       },
       
       // Internal method for real-time sync to update data directly

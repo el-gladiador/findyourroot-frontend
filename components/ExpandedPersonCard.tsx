@@ -1,9 +1,10 @@
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, MapPin, Calendar, FileText, Edit3, Trash2, UserPlus } from 'lucide-react';
+import { X, MapPin, Calendar, FileText, Edit3, Trash2, UserPlus, Clock, Loader2 } from 'lucide-react';
 import { Person } from '@/lib/types';
+import { useAppStore } from '@/lib/store';
 
 interface ExpandedPersonCardProps {
   person: Person;
@@ -12,6 +13,8 @@ interface ExpandedPersonCardProps {
   onDelete?: () => void;
   onAddChild?: () => void;
   canEdit?: boolean;
+  isContributor?: boolean;
+  onSuccess?: (message: string) => void;
 }
 
 const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
@@ -21,13 +24,41 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
   onDelete,
   onAddChild,
   canEdit = false,
+  isContributor = false,
+  onSuccess,
 }) => {
+  const removePerson = useAppStore((state) => state.removePerson);
+  const [isDeleting, setIsDeleting] = useState(false);
+  
   // Spring transition matching TreeNode
   const springTransition = {
     type: 'spring' as const,
     stiffness: 400,
     damping: 30,
     mass: 0.8,
+  };
+
+  const handleDelete = async () => {
+    if (isContributor) {
+      // Contributors submit suggestion
+      if (!confirm(`Your request to remove ${person.name} will be submitted for admin approval. Continue?`)) {
+        return;
+      }
+    } else {
+      if (!confirm(`Are you sure you want to remove ${person.name} from the family tree?`)) {
+        return;
+      }
+    }
+    
+    setIsDeleting(true);
+    const result = await removePerson(person.id);
+    setIsDeleting(false);
+    
+    if (result.isSuggestion && result.message) {
+      onSuccess?.(result.message);
+    }
+    
+    onClose();
   };
 
   return (
@@ -171,6 +202,21 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
               )}
             </motion.div>
 
+            {/* Contributor Notice */}
+            {canEdit && isContributor && (
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.15, duration: 0.25 }}
+                className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl mt-4"
+              >
+                <Clock size={16} className="text-amber-600 dark:text-amber-400 flex-shrink-0" />
+                <p className="text-xs text-amber-700 dark:text-amber-300">
+                  Your changes will be submitted as suggestions and require admin approval.
+                </p>
+              </motion.div>
+            )}
+
             {/* Action Buttons */}
             <motion.div
               initial={{ opacity: 0, y: 10 }}
@@ -183,10 +229,14 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
               {canEdit && onAddChild && (
                 <button
                   onClick={onAddChild}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-transform"
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-white rounded-xl font-semibold shadow-lg active:scale-[0.98] transition-transform ${
+                    isContributor 
+                      ? 'bg-gradient-to-r from-amber-500 to-orange-500 shadow-amber-500/20' 
+                      : 'bg-gradient-to-r from-emerald-500 to-teal-500 shadow-emerald-500/20'
+                  }`}
                 >
-                  <UserPlus size={18} />
-                  <span>Add Child</span>
+                  {isContributor ? <Clock size={18} /> : <UserPlus size={18} />}
+                  <span>{isContributor ? 'Suggest Child' : 'Add Child'}</span>
                 </button>
               )}
 
@@ -194,20 +244,30 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
               {canEdit && onEdit && (
                 <button
                   onClick={onEdit}
-                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl font-semibold active:scale-[0.98] transition-all"
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 text-white rounded-xl font-semibold active:scale-[0.98] transition-all ${
+                    isContributor 
+                      ? 'bg-amber-600 hover:bg-amber-700' 
+                      : 'bg-indigo-600 hover:bg-indigo-700'
+                  }`}
                 >
-                  <Edit3 size={18} />
-                  Edit
+                  {isContributor ? <Clock size={18} /> : <Edit3 size={18} />}
+                  {isContributor ? 'Suggest Edit' : 'Edit'}
                 </button>
               )}
 
               {/* Delete Button */}
-              {canEdit && onDelete && (
+              {canEdit && (
                 <button
-                  onClick={onDelete}
-                  className="w-11 flex items-center justify-center py-2.5 bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 rounded-xl hover:bg-rose-200 dark:hover:bg-rose-900/50 active:scale-[0.98] transition-all"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                  className={`w-11 flex items-center justify-center py-2.5 rounded-xl active:scale-[0.98] transition-all disabled:opacity-50 ${
+                    isContributor 
+                      ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 hover:bg-amber-200 dark:hover:bg-amber-900/50' 
+                      : 'bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 hover:bg-rose-200 dark:hover:bg-rose-900/50'
+                  }`}
+                  title={isContributor ? 'Suggest removal' : 'Delete'}
                 >
-                  <Trash2 size={18} />
+                  {isDeleting ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
                 </button>
               )}
             </motion.div>

@@ -116,6 +116,16 @@ export const canSuggest = (role: UserRole): boolean => {
   return role === 'contributor' || role === 'editor' || role === 'co-admin' || role === 'admin';
 };
 
+// Contributors can use add/edit/delete buttons but changes create suggestions
+export const canContribute = (role: UserRole): boolean => {
+  return role === 'contributor' || role === 'editor' || role === 'co-admin' || role === 'admin';
+};
+
+// Check if user needs approval for changes (contributors only)
+export const needsApproval = (role: UserRole): boolean => {
+  return role === 'contributor';
+};
+
 export const getRoleLabel = (role: UserRole): string => {
   switch (role) {
     case 'viewer': return 'Viewer';
