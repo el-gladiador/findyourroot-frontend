@@ -65,7 +65,10 @@ const TreeTab = () => {
   // Dynamic refs storage
   const nodeRefs = useRef<Map<string, HTMLDivElement>>(new Map());
   
+  // Lines connecting nodes
   const [lines, setLines] = useState<Array<{ x1: number; y1: number; x2: number; y2: number }>>([]);
+  // Counter to trigger line recalculation when nodes change
+  const [nodesRendered, setNodesRendered] = useState(0);
   
   // Find root nodes (nodes with no parents) - recalculate when familyData changes
   const rootNodes = useMemo(() => {
@@ -92,10 +95,19 @@ const TreeTab = () => {
   };
   
   const setNodeRef = (id: string) => (el: HTMLDivElement | null) => {
+    const hadRef = nodeRefs.current.has(id);
     if (el) {
       nodeRefs.current.set(id, el);
+      // Trigger line recalculation when new node is mounted
+      if (!hadRef) {
+        requestAnimationFrame(() => setNodesRendered(n => n + 1));
+      }
     } else {
       nodeRefs.current.delete(id);
+      // Trigger line recalculation when node is unmounted
+      if (hadRef) {
+        requestAnimationFrame(() => setNodesRendered(n => n + 1));
+      }
     }
   };
 
@@ -276,33 +288,49 @@ const TreeTab = () => {
     }
   };
 
-  // Memoized line calculation - only recalculates when familyData changes
+  // Calculate lines based on node positions within the container
+  // Uses offsetLeft/offsetTop for stable positioning that doesn't depend on transforms
   const calculateLines = useCallback(() => {
     if (!containerRef.current) return [];
     
-    const currentScale = gestureState.current.currentScale;
     const newLines: Array<{ x1: number; y1: number; x2: number; y2: number }> = [];
     
     const getNodePosition = (personId: string) => {
       const el = nodeRefs.current.get(personId);
       if (!el) return null;
       
+      // Find the image element (the circle)
       const img = el.querySelector('img');
       if (!img) return null;
       
-      // Get position relative to the container (not viewport)
-      const containerRect = containerRef.current!.getBoundingClientRect();
-      const rect = img.getBoundingClientRect();
-      
-      // Calculate actual position in container's coordinate space (unscaled)
-      const x = (rect.left + rect.width / 2 - containerRect.left) / currentScale;
-      const y = (rect.top + rect.height / 2 - containerRect.top) / currentScale;
-      const bottom = (rect.bottom - containerRect.top) / currentScale;
-      const top = (rect.top - containerRect.top) / currentScale;
-      const left = (rect.left - containerRect.left) / currentScale;
-      const right = (rect.right - containerRect.left) / currentScale;
+      // Use offset-based positioning relative to container
+      // This is stable regardless of zoom/pan transforms
+      const getOffsetPosition = (element: HTMLElement, container: HTMLElement) => {
+        let left = 0;
+        let top = 0;
+        let current: HTMLElement | null = element;
         
-      return { x, y, bottom, top, left, right };
+        while (current && current !== container) {
+          left += current.offsetLeft;
+          top += current.offsetTop;
+          current = current.offsetParent as HTMLElement | null;
+        }
+        
+        return { left, top };
+      };
+      
+      const imgPos = getOffsetPosition(img, containerRef.current!);
+      const imgWidth = img.offsetWidth || 80;
+      const imgHeight = img.offsetHeight || 80;
+      
+      return {
+        x: imgPos.left + imgWidth / 2,
+        y: imgPos.top + imgHeight / 2,
+        top: imgPos.top,
+        bottom: imgPos.top + imgHeight,
+        left: imgPos.left,
+        right: imgPos.left + imgWidth,
+      };
     };
     
     // Draw connections for each person with children
@@ -384,35 +412,44 @@ const TreeTab = () => {
     return newLines;
   }, [familyData, findSpouse, getChildren]);
 
-  // Update lines only when not panning and when familyData/scale changes
+  // Track when nodes have been rendered for line calculation
+  const [nodesRendered, setNodesRendered] = useState(0);
+
+  // Update lines when familyData changes or nodes are re-rendered
   useEffect(() => {
-    if (isPanning) return;
+    // Use requestAnimationFrame to ensure DOM is updated
+    const calculateAfterRender = () => {
+      requestAnimationFrame(() => {
+        const newLines = calculateLines();
+        setLines(newLines);
+      });
+    };
     
-    const timer = setTimeout(() => {
-      const newLines = calculateLines();
-      setLines(newLines);
-    }, 50);
+    // Small delay to ensure nodes are fully rendered
+    const timer = setTimeout(calculateAfterRender, 50);
     
     return () => clearTimeout(timer);
-  }, [familyData, scale, isPanning, calculateLines]);
+  }, [familyData, calculateLines, nodesRendered]);
 
-  // Initial line calculation
+  // Recalculate lines when nodes mount/unmount
   useEffect(() => {
+    // Trigger recalculation when component mounts
     const timer = setTimeout(() => {
-      const newLines = calculateLines();
-      setLines(newLines);
-    }, 100);
+      setNodesRendered(n => n + 1);
+    }, 150);
     
+    return () => clearTimeout(timer);
+  }, [familyData.length]);
+
+  // Handle resize
+  useEffect(() => {
     const handleResize = throttle(() => {
       const newLines = calculateLines();
       setLines(newLines);
     }, 100);
     
     window.addEventListener('resize', handleResize);
-    return () => {
-      window.removeEventListener('resize', handleResize);
-      clearTimeout(timer);
-    };
+    return () => window.removeEventListener('resize', handleResize);
   }, [calculateLines]);
 
   // Cleanup RAF on unmount
