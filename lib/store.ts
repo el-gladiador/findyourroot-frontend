@@ -201,9 +201,9 @@ export const useAppStore = create<AppState>()(
               name: person.name,
               role: person.role,
               birth: person.birth,
-              location: person.location,
+              location: person.location || '',
               avatar: person.avatar,
-              bio: person.bio,
+              bio: person.bio || '',
             },
             message: 'Add new family member',
           });
