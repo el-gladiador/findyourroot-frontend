@@ -1,8 +1,8 @@
-import { useEffect, useRef } from 'react';
-import { collection, onSnapshot, Unsubscribe } from 'firebase/firestore';
+import { useEffect, useRef, useState, useCallback } from 'react';
+import { collection, onSnapshot, query, where, Unsubscribe } from 'firebase/firestore';
 import { getFirestoreDB, isFirebaseConfigured } from './firebase';
 import { useAppStore } from './store';
-import { Person } from './types';
+import { Person, Suggestion, PermissionRequest, IdentityClaimRequest } from './types';
 
 /**
  * Real-time sync hook that works with both Firestore and non-Firestore backends
@@ -98,4 +98,181 @@ export const useRealtimeSync = () => {
       }
     };
   }, [isAuthenticated, fetchFamilyData, setFamilyData]);
+};
+
+/**
+ * Real-time admin sync hook for suggestions, permission requests, etc.
+ * Provides instant updates when new requests come in.
+ */
+export const useRealtimeAdminSync = (
+  collectionName: 'suggestions' | 'permission_requests' | 'identity_claims',
+  statusFilter: string = 'pending'
+) => {
+  const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+  const user = useAppStore((state) => state.user);
+  const [data, setData] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [newItemCount, setNewItemCount] = useState(0);
+  const unsubscribeRef = useRef<Unsubscribe | null>(null);
+  const previousCountRef = useRef<number>(0);
+
+  // Check if user can view admin data
+  const canViewAdminData = user?.role === 'admin' || user?.role === 'co-admin';
+
+  useEffect(() => {
+    if (!isAuthenticated || !canViewAdminData) {
+      setData([]);
+      setIsLoading(false);
+      return;
+    }
+
+    // Try Firestore real-time listeners
+    if (isFirebaseConfigured()) {
+      const db = getFirestoreDB();
+      
+      if (db) {
+        console.log(`[Admin Realtime] Listening to ${collectionName} (status: ${statusFilter})`);
+        setIsLoading(true);
+        
+        try {
+          // Create query with status filter
+          const q = query(
+            collection(db, collectionName),
+            where('status', '==', statusFilter)
+          );
+
+          unsubscribeRef.current = onSnapshot(
+            q,
+            (snapshot) => {
+              const items: any[] = [];
+              snapshot.forEach((doc) => {
+                items.push({ id: doc.id, ...doc.data() });
+              });
+              
+              // Sort by created_at descending
+              items.sort((a, b) => {
+                const timeA = a.created_at?.seconds || 0;
+                const timeB = b.created_at?.seconds || 0;
+                return timeB - timeA;
+              });
+              
+              // Check for new items (for notification)
+              if (previousCountRef.current > 0 && items.length > previousCountRef.current) {
+                const newCount = items.length - previousCountRef.current;
+                setNewItemCount(prev => prev + newCount);
+                
+                // Show browser notification if supported
+                if (Notification.permission === 'granted') {
+                  new Notification(`${newCount} new ${collectionName.replace('_', ' ')}`, {
+                    body: 'New items are waiting for your review',
+                    icon: '/icon-192x192.png'
+                  });
+                }
+              }
+              previousCountRef.current = items.length;
+              
+              setData(items);
+              setIsLoading(false);
+            },
+            (error) => {
+              console.error(`[Admin Realtime] Error listening to ${collectionName}:`, error);
+              setIsLoading(false);
+            }
+          );
+
+          return () => {
+            if (unsubscribeRef.current) {
+              console.log(`[Admin Realtime] Cleaning up ${collectionName} listener`);
+              unsubscribeRef.current();
+            }
+          };
+        } catch (error) {
+          console.error(`[Admin Realtime] Failed to setup ${collectionName} listener:`, error);
+          setIsLoading(false);
+        }
+      }
+    }
+
+    setIsLoading(false);
+  }, [isAuthenticated, canViewAdminData, collectionName, statusFilter]);
+
+  // Function to clear new item notification count
+  const clearNewItemCount = useCallback(() => {
+    setNewItemCount(0);
+  }, []);
+
+  // Request notification permission
+  useEffect(() => {
+    if (canViewAdminData && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  }, [canViewAdminData]);
+
+  return { data, isLoading, newItemCount, clearNewItemCount };
+};
+
+/**
+ * Hook to get pending counts for admin badge notifications
+ */
+export const useAdminPendingCounts = () => {
+  const isAuthenticated = useAppStore((state) => state.isAuthenticated);
+  const user = useAppStore((state) => state.user);
+  const [counts, setCounts] = useState({
+    suggestions: 0,
+    permissionRequests: 0,
+    identityClaims: 0
+  });
+  const unsubscribesRef = useRef<Unsubscribe[]>([]);
+
+  const canViewAdminData = user?.role === 'admin' || user?.role === 'co-admin';
+
+  useEffect(() => {
+    if (!isAuthenticated || !canViewAdminData || !isFirebaseConfigured()) {
+      return;
+    }
+
+    const db = getFirestoreDB();
+    if (!db) return;
+
+    // Listen to suggestions count
+    const suggestionsQuery = query(
+      collection(db, 'suggestions'),
+      where('status', '==', 'pending')
+    );
+    unsubscribesRef.current.push(
+      onSnapshot(suggestionsQuery, (snapshot) => {
+        setCounts(prev => ({ ...prev, suggestions: snapshot.size }));
+      })
+    );
+
+    // Listen to permission requests count (admin only)
+    if (user?.role === 'admin') {
+      const permissionsQuery = query(
+        collection(db, 'permission_requests'),
+        where('status', '==', 'pending')
+      );
+      unsubscribesRef.current.push(
+        onSnapshot(permissionsQuery, (snapshot) => {
+          setCounts(prev => ({ ...prev, permissionRequests: snapshot.size }));
+        })
+      );
+
+      const identityQuery = query(
+        collection(db, 'identity_claims'),
+        where('status', '==', 'pending')
+      );
+      unsubscribesRef.current.push(
+        onSnapshot(identityQuery, (snapshot) => {
+          setCounts(prev => ({ ...prev, identityClaims: snapshot.size }));
+        })
+      );
+    }
+
+    return () => {
+      unsubscribesRef.current.forEach(unsub => unsub());
+      unsubscribesRef.current = [];
+    };
+  }, [isAuthenticated, canViewAdminData, user?.role]);
+
+  return counts;
 };
