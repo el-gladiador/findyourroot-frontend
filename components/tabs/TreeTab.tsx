@@ -72,7 +72,7 @@ const TreeTab = () => {
   const FRICTION = 0.95;
   const MIN_VELOCITY = 0.1;
   const VELOCITY_HISTORY_SIZE = 5;
-  const DRAG_THRESHOLD = 8; // Pixels moved to be considered a drag
+  const DRAG_THRESHOLD = 1; // Pixels moved to be considered a drag
   
   // Keep refs in sync with state
   useEffect(() => {
