@@ -49,9 +49,15 @@ const TreeTab = () => {
   // Refs for gesture handling (avoid state updates during gestures)
   const gestureState = useRef({
     isPanning: false,
+    isPinching: false,
     startPan: { x: 0, y: 0 },
     currentTranslate: { x: 0, y: 0 },
     currentScale: 1,
+    // Pinch zoom state
+    pinchStartDistance: 0,
+    pinchStartScale: 1,
+    pinchStartMidpoint: { x: 0, y: 0 },
+    pinchStartTranslate: { x: 0, y: 0 },
   });
   
   // Keep refs in sync with state
@@ -140,7 +146,7 @@ const TreeTab = () => {
 
   // Zoom handlers
   const handleZoomIn = () => {
-    setScale(prevScale => Math.min(prevScale + 0.1, 1.2));
+    setScale(prevScale => Math.min(prevScale + 0.1, 2.0));
   };
 
   const handleZoomOut = () => {
@@ -165,7 +171,7 @@ const TreeTab = () => {
     // Calculate scale to fit with some padding (80% of viewport)
     const scaleX = (viewportRect.width * 0.8) / contentWidth;
     const scaleY = (viewportRect.height * 0.8) / contentHeight;
-    const optimalScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.3), 1.2);
+    const optimalScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.3), 2.0);
     
     setScale(optimalScale);
     setTranslate({ x: 0, y: 0 });
@@ -208,7 +214,7 @@ const TreeTab = () => {
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = -e.deltaY / 500;
-    const newScale = Math.min(Math.max(scale + delta, 0.3), 1.2);
+    const newScale = Math.min(Math.max(scale + delta, 0.3), 2.0);
     setScale(newScale);
   };
 
@@ -252,8 +258,35 @@ const TreeTab = () => {
     }
   };
 
+  // Helper: Calculate distance between two touch points
+  const getTouchDistance = (touch1: React.Touch, touch2: React.Touch) => {
+    const dx = touch2.clientX - touch1.clientX;
+    const dy = touch2.clientY - touch1.clientY;
+    return Math.sqrt(dx * dx + dy * dy);
+  };
+
+  // Helper: Calculate midpoint between two touch points
+  const getTouchMidpoint = (touch1: React.Touch, touch2: React.Touch) => ({
+    x: (touch1.clientX + touch2.clientX) / 2,
+    y: (touch1.clientY + touch2.clientY) / 2,
+  });
+
   const handleTouchStart = (e: React.TouchEvent) => {
-    if (e.touches.length === 1) {
+    if (e.touches.length === 2) {
+      // Pinch zoom start - initialize pinch state
+      e.preventDefault();
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      
+      gestureState.current.isPinching = true;
+      gestureState.current.isPanning = false;
+      gestureState.current.pinchStartDistance = getTouchDistance(touch1, touch2);
+      gestureState.current.pinchStartScale = gestureState.current.currentScale;
+      gestureState.current.pinchStartMidpoint = getTouchMidpoint(touch1, touch2);
+      gestureState.current.pinchStartTranslate = { ...gestureState.current.currentTranslate };
+      setIsPanning(true); // Visual feedback
+    } else if (e.touches.length === 1 && !gestureState.current.isPinching) {
+      // Single finger pan
       if ((e.target as HTMLElement).closest('.tree-node-clickable')) return;
       const touch = e.touches[0];
       
@@ -267,7 +300,48 @@ const TreeTab = () => {
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 1 && gestureState.current.isPanning) {
+    if (e.touches.length === 2 && gestureState.current.isPinching) {
+      // Pinch zoom - calculate new scale and translate to keep content under fingers
+      e.preventDefault();
+      const touch1 = e.touches[0];
+      const touch2 = e.touches[1];
+      
+      const currentDistance = getTouchDistance(touch1, touch2);
+      const currentMidpoint = getTouchMidpoint(touch1, touch2);
+      
+      // Calculate new scale based on finger distance change
+      const scaleRatio = currentDistance / gestureState.current.pinchStartDistance;
+      const newScale = Math.min(Math.max(gestureState.current.pinchStartScale * scaleRatio, 0.3), 2.0);
+      
+      // Get viewport center for transform origin calculation
+      const viewportRect = viewportRef.current?.getBoundingClientRect();
+      if (!viewportRect) return;
+      
+      const viewportCenterX = viewportRect.width / 2;
+      const viewportCenterY = viewportRect.height / 2;
+      
+      // Calculate midpoint position relative to viewport center
+      const startMidRelX = gestureState.current.pinchStartMidpoint.x - viewportRect.left - viewportCenterX;
+      const startMidRelY = gestureState.current.pinchStartMidpoint.y - viewportRect.top - viewportCenterY;
+      const currentMidRelX = currentMidpoint.x - viewportRect.left - viewportCenterX;
+      const currentMidRelY = currentMidpoint.y - viewportRect.top - viewportCenterY;
+      
+      // Calculate how much the content under the starting midpoint should move
+      // to stay under the current midpoint after scaling
+      const scaleDiff = newScale / gestureState.current.pinchStartScale;
+      
+      // The point under the starting midpoint needs to scale and then be offset
+      // to appear under the current midpoint
+      const newX = gestureState.current.pinchStartTranslate.x - startMidRelX * (scaleDiff - 1) + (currentMidRelX - startMidRelX);
+      const newY = gestureState.current.pinchStartTranslate.y - startMidRelY * (scaleDiff - 1) + (currentMidRelY - startMidRelY);
+      
+      gestureState.current.currentScale = newScale;
+      gestureState.current.currentTranslate = { x: newX, y: newY };
+      
+      // Direct DOM manipulation for smooth animation
+      applyTransformToDOM(newX, newY, newScale);
+    } else if (e.touches.length === 1 && gestureState.current.isPanning && !gestureState.current.isPinching) {
+      // Single finger pan
       const touch = e.touches[0];
       const newX = touch.clientX - gestureState.current.startPan.x;
       const newY = touch.clientY - gestureState.current.startPan.y;
@@ -279,12 +353,34 @@ const TreeTab = () => {
     }
   };
 
-  const handleTouchEnd = () => {
-    if (gestureState.current.isPanning) {
-      gestureState.current.isPanning = false;
-      setIsPanning(false);
-      // Sync React state with final position
-      setTranslate({ ...gestureState.current.currentTranslate });
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (gestureState.current.isPinching) {
+      if (e.touches.length < 2) {
+        // Pinch ended - sync state and potentially continue with pan
+        gestureState.current.isPinching = false;
+        setScale(gestureState.current.currentScale);
+        setTranslate({ ...gestureState.current.currentTranslate });
+        
+        // If one finger remains, start panning from that position
+        if (e.touches.length === 1) {
+          const touch = e.touches[0];
+          gestureState.current.isPanning = true;
+          gestureState.current.startPan = {
+            x: touch.clientX - gestureState.current.currentTranslate.x,
+            y: touch.clientY - gestureState.current.currentTranslate.y
+          };
+        } else {
+          gestureState.current.isPanning = false;
+          setIsPanning(false);
+        }
+      }
+    } else if (gestureState.current.isPanning) {
+      if (e.touches.length === 0) {
+        gestureState.current.isPanning = false;
+        setIsPanning(false);
+        // Sync React state with final position
+        setTranslate({ ...gestureState.current.currentTranslate });
+      }
     }
   };
 
