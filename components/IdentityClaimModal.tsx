@@ -58,7 +58,7 @@ const IdentityClaimModal: React.FC<IdentityClaimModalProps> = ({ onClose }) => {
     return (
       person.name.toLowerCase().includes(term) ||
       person.role.toLowerCase().includes(term) ||
-      person.location.toLowerCase().includes(term)
+      (person.location && person.location.toLowerCase().includes(term))
     );
   }).filter(person => !person.linked_user_id); // Only show unclaimed people
 
