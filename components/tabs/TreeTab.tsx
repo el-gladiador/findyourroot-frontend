@@ -58,28 +58,31 @@ const TreeTab = () => {
     pinchStartScale: 1,
     pinchStartMidpoint: { x: 0, y: 0 },
     pinchStartTranslate: { x: 0, y: 0 },
-    // Velocity tracking for inertia
-    velocity: { x: 0, y: 0 },
-    lastPosition: { x: 0, y: 0 },
-    lastTime: 0,
+    // Velocity tracking for inertia - store last N positions for accurate velocity
+    velocityHistory: [] as Array<{ x: number; y: number; time: number }>,
     // Animation frame for inertia
     inertiaRafId: null as number | null,
     // Snap-back animation
     snapBackRafId: null as number | null,
     scaleVelocity: 0,
+    // Track if this is a potential click vs drag
+    startPosition: { x: 0, y: 0 },
+    hasMoved: false,
+    isOnNode: false,
   });
   
   // Physics constants
   const ZOOM_MIN = 0.3;
   const ZOOM_MAX = 1.5;
-  const ZOOM_ELASTIC_MIN = 0.15;  // Allow over-zoom down to this
-  const ZOOM_ELASTIC_MAX = 2.2;   // Allow over-zoom up to this
-  const FRICTION = 0.92;          // Velocity decay per frame (lower = more friction)
-  const MIN_VELOCITY = 0.5;       // Stop animation below this velocity
-  const VELOCITY_SCALE = 0.3;     // Scale factor for initial velocity
+  const ZOOM_ELASTIC_MIN = 0.15;
+  const ZOOM_ELASTIC_MAX = 2.2;
+  const FRICTION = 0.95;           // Higher = less friction, more glide
+  const MIN_VELOCITY = 0.1;        // Lower threshold for smoother stop
+  const DRAG_THRESHOLD = 5;        // Pixels moved before considered a drag
+  const VELOCITY_HISTORY_SIZE = 5; // Number of samples for velocity calculation
   // Spring physics for snap-back
-  const SPRING_TENSION = 300;     // Spring stiffness
-  const SPRING_FRICTION = 20;     // Damping
+  const SPRING_TENSION = 300;
+  const SPRING_FRICTION = 20;
   
   // Keep refs in sync with state
   useEffect(() => {
@@ -258,17 +261,41 @@ const TreeTab = () => {
     }
   }, []);
 
+  // Calculate velocity from recent position history
+  const calculateVelocity = useCallback(() => {
+    const history = gestureState.current.velocityHistory;
+    if (history.length < 2) return { x: 0, y: 0 };
+    
+    // Use the last few samples to get a smooth velocity
+    const recent = history.slice(-3);
+    const oldest = recent[0];
+    const newest = recent[recent.length - 1];
+    const dt = (newest.time - oldest.time) / 1000; // Convert to seconds
+    
+    if (dt <= 0) return { x: 0, y: 0 };
+    
+    // Velocity in pixels per second, then scale for 60fps animation
+    const vx = ((newest.x - oldest.x) / dt) / 60;
+    const vy = ((newest.y - oldest.y) / dt) / 60;
+    
+    return { x: vx, y: vy };
+  }, []);
+
   // Run inertia animation after releasing pan
   const runInertia = useCallback(() => {
+    const velocity = calculateVelocity();
+    let vx = velocity.x;
+    let vy = velocity.y;
+    
     const animate = () => {
       const gs = gestureState.current;
       
       // Apply friction
-      gs.velocity.x *= FRICTION;
-      gs.velocity.y *= FRICTION;
+      vx *= FRICTION;
+      vy *= FRICTION;
       
       // Check if we should stop
-      const speed = Math.sqrt(gs.velocity.x * gs.velocity.x + gs.velocity.y * gs.velocity.y);
+      const speed = Math.sqrt(vx * vx + vy * vy);
       if (speed < MIN_VELOCITY) {
         gs.inertiaRafId = null;
         setTranslate({ ...gs.currentTranslate });
@@ -277,8 +304,8 @@ const TreeTab = () => {
       }
       
       // Update position
-      gs.currentTranslate.x += gs.velocity.x;
-      gs.currentTranslate.y += gs.velocity.y;
+      gs.currentTranslate.x += vx;
+      gs.currentTranslate.y += vy;
       
       // Apply to DOM
       applyTransformToDOM(gs.currentTranslate.x, gs.currentTranslate.y, gs.currentScale);
@@ -288,7 +315,7 @@ const TreeTab = () => {
     };
     
     gestureState.current.inertiaRafId = requestAnimationFrame(animate);
-  }, [applyTransformToDOM]);
+  }, [applyTransformToDOM, calculateVelocity]);
 
   // Animate zoom snap-back when out of bounds using spring physics
   const animateZoomSnapBack = useCallback(() => {
@@ -345,64 +372,82 @@ const TreeTab = () => {
     gs.snapBackRafId = requestAnimationFrame(animate);
   }, [applyTransformToDOM]);
 
-  // Pan handlers - Optimized for performance with velocity tracking
+  // Pan handlers - allow starting from nodes, differentiate click vs drag
   const handleMouseDown = (e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest('.tree-node-clickable')) return;
-    
     stopInertia();
+    
+    const isOnNode = !!(e.target as HTMLElement).closest('.tree-node-clickable');
+    
     gestureState.current.isPanning = true;
-    gestureState.current.velocity = { x: 0, y: 0 };
-    gestureState.current.lastPosition = { x: e.clientX, y: e.clientY };
-    gestureState.current.lastTime = Date.now();
+    gestureState.current.hasMoved = false;
+    gestureState.current.isOnNode = isOnNode;
+    gestureState.current.startPosition = { x: e.clientX, y: e.clientY };
+    gestureState.current.velocityHistory = [{ x: e.clientX, y: e.clientY, time: Date.now() }];
     gestureState.current.startPan = { 
       x: e.clientX - gestureState.current.currentTranslate.x, 
       y: e.clientY - gestureState.current.currentTranslate.y 
     };
-    setIsPanning(true);
+    
+    // Only show panning cursor if not on a node
+    if (!isOnNode) {
+      setIsPanning(true);
+    }
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!gestureState.current.isPanning) return;
     
-    const now = Date.now();
-    const dt = now - gestureState.current.lastTime;
+    const gs = gestureState.current;
+    const dx = e.clientX - gs.startPosition.x;
+    const dy = e.clientY - gs.startPosition.y;
+    const distance = Math.sqrt(dx * dx + dy * dy);
     
-    const newX = e.clientX - gestureState.current.startPan.x;
-    const newY = e.clientY - gestureState.current.startPan.y;
-    
-    // Track velocity (pixels per frame at ~60fps)
-    if (dt > 0) {
-      const vx = (e.clientX - gestureState.current.lastPosition.x) * VELOCITY_SCALE;
-      const vy = (e.clientY - gestureState.current.lastPosition.y) * VELOCITY_SCALE;
-      // Smooth velocity with previous value
-      gestureState.current.velocity.x = gestureState.current.velocity.x * 0.5 + vx * 0.5;
-      gestureState.current.velocity.y = gestureState.current.velocity.y * 0.5 + vy * 0.5;
+    // Check if we've moved enough to be considered a drag
+    if (!gs.hasMoved && distance > DRAG_THRESHOLD) {
+      gs.hasMoved = true;
+      setIsPanning(true);
     }
     
-    gestureState.current.lastPosition = { x: e.clientX, y: e.clientY };
-    gestureState.current.lastTime = now;
-    gestureState.current.currentTranslate = { x: newX, y: newY };
+    // Only pan if we've confirmed it's a drag
+    if (!gs.hasMoved) return;
+    
+    const newX = e.clientX - gs.startPan.x;
+    const newY = e.clientY - gs.startPan.y;
+    
+    // Add to velocity history
+    gs.velocityHistory.push({ x: e.clientX, y: e.clientY, time: Date.now() });
+    if (gs.velocityHistory.length > VELOCITY_HISTORY_SIZE) {
+      gs.velocityHistory.shift();
+    }
+    
+    gs.currentTranslate = { x: newX, y: newY };
     
     // Direct DOM manipulation - no React state update during drag
-    applyTransformToDOM(newX, newY, gestureState.current.currentScale);
+    applyTransformToDOM(newX, newY, gs.currentScale);
   };
 
-  const handleMouseUp = () => {
+  const handleMouseUp = (e: React.MouseEvent) => {
     if (gestureState.current.isPanning) {
-      gestureState.current.isPanning = false;
+      const gs = gestureState.current;
+      gs.isPanning = false;
       
-      // Check if we have significant velocity for inertia
-      const speed = Math.sqrt(
-        gestureState.current.velocity.x * gestureState.current.velocity.x + 
-        gestureState.current.velocity.y * gestureState.current.velocity.y
-      );
+      // If we didn't move much and started on a node, it's a click - don't do anything
+      // The node's onClick will handle it
+      if (!gs.hasMoved) {
+        setIsPanning(false);
+        return;
+      }
+      
+      // Calculate velocity for inertia
+      const velocity = calculateVelocity();
+      const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
       
       if (speed > MIN_VELOCITY) {
         // Start inertia animation
         runInertia();
       } else {
         setIsPanning(false);
-        setTranslate({ ...gestureState.current.currentTranslate });
+        setTranslate({ ...gs.currentTranslate });
       }
     }
   };
@@ -436,20 +481,24 @@ const TreeTab = () => {
       gestureState.current.pinchStartTranslate = { ...gestureState.current.currentTranslate };
       setIsPanning(true); // Visual feedback
     } else if (e.touches.length === 1 && !gestureState.current.isPinching) {
-      // Single finger pan
-      if ((e.target as HTMLElement).closest('.tree-node-clickable')) return;
+      // Single finger pan - allow starting from nodes
       stopInertia();
       const touch = e.touches[0];
+      const isOnNode = !!(e.target as HTMLElement).closest('.tree-node-clickable');
       
       gestureState.current.isPanning = true;
-      gestureState.current.velocity = { x: 0, y: 0 };
-      gestureState.current.lastPosition = { x: touch.clientX, y: touch.clientY };
-      gestureState.current.lastTime = Date.now();
+      gestureState.current.hasMoved = false;
+      gestureState.current.isOnNode = isOnNode;
+      gestureState.current.startPosition = { x: touch.clientX, y: touch.clientY };
+      gestureState.current.velocityHistory = [{ x: touch.clientX, y: touch.clientY, time: Date.now() }];
       gestureState.current.startPan = { 
         x: touch.clientX - gestureState.current.currentTranslate.x, 
         y: touch.clientY - gestureState.current.currentTranslate.y 
       };
-      setIsPanning(true);
+      
+      if (!isOnNode) {
+        setIsPanning(true);
+      }
     }
   };
 
@@ -507,26 +556,34 @@ const TreeTab = () => {
     } else if (e.touches.length === 1 && gestureState.current.isPanning && !gestureState.current.isPinching) {
       // Single finger pan with velocity tracking
       const touch = e.touches[0];
-      const now = Date.now();
-      const dt = now - gestureState.current.lastTime;
+      const gs = gestureState.current;
       
-      const newX = touch.clientX - gestureState.current.startPan.x;
-      const newY = touch.clientY - gestureState.current.startPan.y;
+      const dx = touch.clientX - gs.startPosition.x;
+      const dy = touch.clientY - gs.startPosition.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
       
-      // Track velocity
-      if (dt > 0) {
-        const vx = (touch.clientX - gestureState.current.lastPosition.x) * VELOCITY_SCALE;
-        const vy = (touch.clientY - gestureState.current.lastPosition.y) * VELOCITY_SCALE;
-        gestureState.current.velocity.x = gestureState.current.velocity.x * 0.5 + vx * 0.5;
-        gestureState.current.velocity.y = gestureState.current.velocity.y * 0.5 + vy * 0.5;
+      // Check if we've moved enough to be considered a drag
+      if (!gs.hasMoved && distance > DRAG_THRESHOLD) {
+        gs.hasMoved = true;
+        setIsPanning(true);
       }
       
-      gestureState.current.lastPosition = { x: touch.clientX, y: touch.clientY };
-      gestureState.current.lastTime = now;
-      gestureState.current.currentTranslate = { x: newX, y: newY };
+      // Only pan if we've confirmed it's a drag
+      if (!gs.hasMoved) return;
+      
+      const newX = touch.clientX - gs.startPan.x;
+      const newY = touch.clientY - gs.startPan.y;
+      
+      // Add to velocity history
+      gs.velocityHistory.push({ x: touch.clientX, y: touch.clientY, time: Date.now() });
+      if (gs.velocityHistory.length > VELOCITY_HISTORY_SIZE) {
+        gs.velocityHistory.shift();
+      }
+      
+      gs.currentTranslate = { x: newX, y: newY };
       
       // Direct DOM manipulation - no React state update during drag
-      applyTransformToDOM(newX, newY, gestureState.current.currentScale);
+      applyTransformToDOM(newX, newY, gs.currentScale);
     }
   };
 
@@ -552,9 +609,10 @@ const TreeTab = () => {
         if (e.touches.length === 1) {
           const touch = e.touches[0];
           gestureState.current.isPanning = true;
-          gestureState.current.velocity = { x: 0, y: 0 };
-          gestureState.current.lastPosition = { x: touch.clientX, y: touch.clientY };
-          gestureState.current.lastTime = Date.now();
+          gestureState.current.hasMoved = false;
+          gestureState.current.isOnNode = false;
+          gestureState.current.startPosition = { x: touch.clientX, y: touch.clientY };
+          gestureState.current.velocityHistory = [{ x: touch.clientX, y: touch.clientY, time: Date.now() }];
           gestureState.current.startPan = {
             x: touch.clientX - gestureState.current.currentTranslate.x,
             y: touch.clientY - gestureState.current.currentTranslate.y
@@ -566,20 +624,25 @@ const TreeTab = () => {
       }
     } else if (gestureState.current.isPanning) {
       if (e.touches.length === 0) {
-        gestureState.current.isPanning = false;
+        const gs = gestureState.current;
+        gs.isPanning = false;
         
-        // Check if we have significant velocity for inertia
-        const speed = Math.sqrt(
-          gestureState.current.velocity.x * gestureState.current.velocity.x + 
-          gestureState.current.velocity.y * gestureState.current.velocity.y
-        );
+        // If we didn't move much and started on a node, it's a tap - don't do anything
+        if (!gs.hasMoved) {
+          setIsPanning(false);
+          return;
+        }
+        
+        // Calculate velocity for inertia
+        const velocity = calculateVelocity();
+        const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
         
         if (speed > MIN_VELOCITY) {
           // Start inertia animation
           runInertia();
         } else {
           setIsPanning(false);
-          setTranslate({ ...gestureState.current.currentTranslate });
+          setTranslate({ ...gs.currentTranslate });
         }
       }
     }
