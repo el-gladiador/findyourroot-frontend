@@ -175,78 +175,62 @@ const AdminTab = () => {
     }
   }, [activeTab, isAdmin, fetchUsers]);
 
-  // Auto-refresh polling
+  // Auto-refresh polling - only for users tab (no real-time sync) 
+  // Other tabs use Firestore real-time sync
   useEffect(() => {
+    // Only poll for users tab since it doesn't have real-time sync
+    if (activeTab !== 'users' || !isAdmin) return;
+    
     const interval = setInterval(() => {
-      if (activeTab === 'permissions' && isAdmin) {
-        fetchRequests(false); // Don't show loading spinner for auto-refresh
-      } else if (activeTab === 'identity' && isAdmin) {
-        fetchIdentityClaims(false);
-      } else if (activeTab === 'suggestions' && canReviewSuggestions) {
-        fetchSuggestions(false);
-      } else if (activeTab === 'users' && isAdmin) {
-        fetchUsers(false);
-      }
+      fetchUsers(false);
     }, AUTO_REFRESH_INTERVAL);
 
     return () => clearInterval(interval);
-  }, [activeTab, isAdmin, canReviewSuggestions, fetchRequests, fetchIdentityClaims, fetchSuggestions, fetchUsers]);
+  }, [activeTab, isAdmin, fetchUsers]);
 
   const handleApprove = async (id: string) => {
     if (confirm('Approve this permission request? The user will be granted the requested role.')) {
-      const response = await ApiClient.approvePermissionRequest(id);
-      if (!response.error) {
-        fetchRequests();
-      }
+      await ApiClient.approvePermissionRequest(id);
+      // Real-time sync will update UI automatically
     }
   };
 
   const handleReject = async (id: string) => {
     if (confirm('Reject this permission request?')) {
-      const response = await ApiClient.rejectPermissionRequest(id);
-      if (!response.error) {
-        fetchRequests();
-      }
+      await ApiClient.rejectPermissionRequest(id);
+      // Real-time sync will update UI automatically
     }
   };
 
   const handleApproveClaim = async (id: string) => {
     const notes = reviewNotes[id] || '';
     if (confirm('Approve this identity claim? The user will be linked to the tree node.')) {
-      const response = await ApiClient.reviewIdentityClaim(id, true, notes);
-      if (!response.error) {
-        fetchIdentityClaims();
-      }
+      await ApiClient.reviewIdentityClaim(id, true, notes);
+      // Real-time sync will update UI automatically
     }
   };
 
   const handleRejectClaim = async (id: string) => {
     const notes = reviewNotes[id] || '';
     if (confirm('Reject this identity claim?')) {
-      const response = await ApiClient.reviewIdentityClaim(id, false, notes);
-      if (!response.error) {
-        fetchIdentityClaims();
-      }
+      await ApiClient.reviewIdentityClaim(id, false, notes);
+      // Real-time sync will update UI automatically
     }
   };
 
   const handleApproveSuggestion = async (id: string) => {
     const notes = suggestionNotes[id] || '';
     if (confirm('Approve this suggestion? The change will be applied to the tree.')) {
-      const response = await ApiClient.reviewSuggestion(id, true, notes);
-      if (!response.error) {
-        fetchSuggestions();
-      }
+      await ApiClient.reviewSuggestion(id, true, notes);
+      // Real-time sync will update UI automatically
     }
   };
 
   const handleRejectSuggestion = async (id: string) => {
     const notes = suggestionNotes[id] || '';
     if (confirm('Reject this suggestion?')) {
-      const response = await ApiClient.reviewSuggestion(id, false, notes);
-      if (!response.error) {
-        fetchSuggestions();
-      }
+      await ApiClient.reviewSuggestion(id, false, notes);
+      // Real-time sync will update UI automatically
     }
   };
 
@@ -254,6 +238,7 @@ const AdminTab = () => {
     if (confirm(`Change this user's role to ${getRoleLabel(newRole)}?`)) {
       const response = await ApiClient.updateUserRole(userId, newRole);
       if (!response.error) {
+        // Refresh users list (no real-time sync for users)
         fetchUsers();
         setShowRoleModal(false);
         setSelectedUser(null);
@@ -265,6 +250,7 @@ const AdminTab = () => {
     if (confirm('Revoke this user\'s access? They will be set to Viewer role.')) {
       const response = await ApiClient.revokeUserAccess(userId);
       if (!response.error) {
+        // Refresh users list (no real-time sync for users)
         fetchUsers();
       }
     }

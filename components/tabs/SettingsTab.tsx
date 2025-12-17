@@ -1,10 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { Bell, Shield, Smartphone, ChevronRight, Download, Share2, LogOut, UserPlus, Loader2, UserCheck } from 'lucide-react';
 import ExportModal from '@/components/ExportModal';
 import IdentityClaimModal from '@/components/IdentityClaimModal';
 import { useAppStore } from '@/lib/store';
 import { shareData } from '@/lib/export';
 import { ApiClient } from '@/lib/api';
+import { UserRole, getRoleLabel, getRoleDescription } from '@/lib/types';
+
+// Role hierarchy for determining upgrade options
+const ROLE_HIERARCHY: UserRole[] = ['viewer', 'contributor', 'editor', 'co-admin', 'admin'];
 
 const SettingsTab = () => {
   const [notifications, setNotifications] = useState(true);
@@ -14,7 +18,7 @@ const SettingsTab = () => {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showIdentityModal, setShowIdentityModal] = useState(false);
   const [requestMessage, setRequestMessage] = useState('');
-  const [requestRole, setRequestRole] = useState<'contributor' | 'editor' | 'co-admin' | 'admin'>('contributor');
+  const [requestRole, setRequestRole] = useState<UserRole>('contributor');
   const [requestStatus, setRequestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
   const [isExporting, setIsExporting] = useState(false);
@@ -22,6 +26,21 @@ const SettingsTab = () => {
   const familyData = useAppStore((state) => state.familyData);
   const user = useAppStore((state) => state.user);
   const logout = useAppStore((state) => state.logout);
+  
+  // Get roles higher than current user's role
+  const availableUpgrades = useMemo(() => {
+    const currentRole = user?.role || 'viewer';
+    const currentIndex = ROLE_HIERARCHY.indexOf(currentRole);
+    // Return all roles higher than current (excluding admin request by non-co-admins for simplicity)
+    return ROLE_HIERARCHY.slice(currentIndex + 1);
+  }, [user?.role]);
+  
+  // Set default request role to next level up
+  useEffect(() => {
+    if (availableUpgrades.length > 0 && !availableUpgrades.includes(requestRole)) {
+      setRequestRole(availableUpgrades[0]);
+    }
+  }, [availableUpgrades, requestRole]);
 
   // Load settings from localStorage
   useEffect(() => {
@@ -199,10 +218,12 @@ const SettingsTab = () => {
                 <div>
                   <p className="font-medium text-slate-800 dark:text-white">{user?.email}</p>
                   <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">
-                    {user?.role || 'viewer'}
-                    {user?.role === 'admin' && ' (Full Access)'}
-                    {user?.role === 'editor' && ' (Can Edit)'}
-                    {user?.role === 'viewer' && ' (View Only)'}
+                    {user?.role === 'admin' && 'Admin (Full Access)'}
+                    {user?.role === 'co-admin' && 'Co-Admin (Can approve)'}
+                    {user?.role === 'editor' && 'Editor (Can edit)'}
+                    {user?.role === 'contributor' && 'Contributor (Can suggest)'}
+                    {user?.role === 'viewer' && 'Viewer (View only)'}
+                    {!user?.role && 'Viewer (View only)'}
                   </p>
                 </div>
               </div>
@@ -233,8 +254,8 @@ const SettingsTab = () => {
               <ChevronRight size={16} className="text-slate-400" />
             </button>
             
-            {/* Request Permissions Button - Only show for viewers */}
-            {user?.role === 'viewer' && (
+            {/* Request Permissions Button - Show for all non-admin users */}
+            {user?.role !== 'admin' && (
               <button 
                 onClick={() => setShowRequestModal(true)}
                 className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
@@ -244,8 +265,8 @@ const SettingsTab = () => {
                     <UserPlus size={16} />
                   </div>
                   <div>
-                    <span className="font-medium text-slate-800 dark:text-white block">Request Permissions</span>
-                    <span className="text-xs text-slate-500 dark:text-slate-400">Ask admin for edit access</span>
+                    <span className="font-medium text-slate-800 dark:text-white block">Request Upgrade</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Ask admin for higher access</span>
                   </div>
                 </div>
                 <ChevronRight size={16} className="text-slate-400" />
@@ -287,48 +308,73 @@ const SettingsTab = () => {
               onClick={(e) => e.stopPropagation()}
             >
               <div className="p-6 border-b border-slate-100 dark:border-slate-700">
-                <h3 className="text-lg font-bold text-slate-800 dark:text-white">Request Permissions</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Ask the administrator for elevated access</p>
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white">Request Role Upgrade</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
+                  Current: <span className="font-medium">{getRoleLabel(user?.role || 'viewer')}</span>
+                </p>
               </div>
 
               <div className="p-6 space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Permission Level
-                  </label>
-                  <select
-                    value={requestRole}
-                    onChange={(e) => setRequestRole(e.target.value as 'contributor' | 'editor' | 'co-admin' | 'admin')}
-                    className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                  >
-                    <option value="contributor">Contributor (Can suggest changes)</option>
-                    <option value="editor">Editor (Can add/edit directly)</option>
-                    <option value="co-admin">Co-Admin (Can approve suggestions)</option>
-                    <option value="admin">Admin (Full access)</option>
-                  </select>
-                </div>
+                {availableUpgrades.length === 0 ? (
+                  <p className="text-sm text-slate-600 dark:text-slate-400">
+                    You already have the highest available role.
+                  </p>
+                ) : (
+                  <>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Request Upgrade To
+                      </label>
+                      <div className="space-y-2">
+                        {availableUpgrades.map((role) => (
+                          <label
+                            key={role}
+                            className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                              requestRole === role
+                                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-900/20'
+                                : 'border-slate-200 dark:border-slate-600 hover:bg-slate-50 dark:hover:bg-slate-700/50'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="requestRole"
+                              value={role}
+                              checked={requestRole === role}
+                              onChange={(e) => setRequestRole(e.target.value as UserRole)}
+                              className="mt-1"
+                            />
+                            <div>
+                              <p className="font-medium text-slate-800 dark:text-white">{getRoleLabel(role)}</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400">{getRoleDescription(role)}</p>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                    Message (Optional)
-                  </label>
-                  <textarea
-                    value={requestMessage}
-                    onChange={(e) => setRequestMessage(e.target.value)}
-                    placeholder="Why do you need this permission?"
-                    rows={3}
-                    className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
-                  />
-                </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                        Message (Optional)
+                      </label>
+                      <textarea
+                        value={requestMessage}
+                        onChange={(e) => setRequestMessage(e.target.value)}
+                        placeholder="Why do you need this permission?"
+                        rows={3}
+                        className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
+                      />
+                    </div>
 
-                {statusMessage && (
-                  <div className={`p-3 rounded-lg ${
-                    requestStatus === 'success' 
-                      ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800' 
-                      : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800'
-                  }`}>
-                    <p className="text-sm">{statusMessage}</p>
-                  </div>
+                    {statusMessage && (
+                      <div className={`p-3 rounded-lg ${
+                        requestStatus === 'success' 
+                          ? 'bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-200 border border-green-200 dark:border-green-800' 
+                          : 'bg-red-50 dark:bg-red-900/20 text-red-800 dark:text-red-200 border border-red-200 dark:border-red-800'
+                      }`}>
+                        <p className="text-sm">{statusMessage}</p>
+                      </div>
+                    )}
+                  </>
                 )}
               </div>
 
@@ -343,13 +389,15 @@ const SettingsTab = () => {
                 >
                   Cancel
                 </button>
-                <button
-                  onClick={handleRequestPermission}
-                  disabled={requestStatus === 'loading'}
-                  className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {requestStatus === 'loading' ? 'Sending...' : 'Send Request'}
-                </button>
+                {availableUpgrades.length > 0 && (
+                  <button
+                    onClick={handleRequestPermission}
+                    disabled={requestStatus === 'loading'}
+                    className="flex-1 px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    {requestStatus === 'loading' ? 'Sending...' : 'Send Request'}
+                  </button>
+                )}
               </div>
             </div>
           </div>

@@ -157,7 +157,7 @@ export class ApiClient {
     });
   }
 
-  static async requestPermission(requestedRole: 'contributor' | 'editor' | 'co-admin' | 'admin', message?: string): Promise<ApiResponse<any>> {
+  static async requestPermission(requestedRole: string, message?: string): Promise<ApiResponse<any>> {
     return this.request('/api/v1/auth/request-permission', {
       method: 'POST',
       body: JSON.stringify({ requested_role: requestedRole, message }),

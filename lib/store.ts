@@ -218,8 +218,7 @@ export const useAppStore = create<AppState>()(
         const response = await ApiClient.createPerson(person, parentId);
         
         if (response.data) {
-          // Refetch data to ensure UI is updated with parent-child relationship
-          await get().fetchFamilyData();
+          // Real-time sync will update UI automatically
           return { id: response.data.id, isSuggestion: false };
         }
         
@@ -248,8 +247,7 @@ export const useAppStore = create<AppState>()(
         const response = await ApiClient.deletePerson(id);
         
         if (!response.error) {
-          // Refetch data to ensure UI is updated
-          await get().fetchFamilyData();
+          // Real-time sync will update UI automatically
           return { success: true, isSuggestion: false };
         }
         
@@ -286,8 +284,7 @@ export const useAppStore = create<AppState>()(
         const response = await ApiClient.updatePerson(id, updates);
         
         if (response.data) {
-          // Refetch data to ensure UI is updated
-          await get().fetchFamilyData();
+          // Real-time sync will update UI automatically
           return { success: true, isSuggestion: false };
         }
         
@@ -299,12 +296,8 @@ export const useAppStore = create<AppState>()(
         
         const response = await ApiClient.deleteAllPeople();
         
-        if (!response.error) {
-          set({ familyData: [] });
-          return true;
-        }
-        
-        return false;
+        // Real-time sync will update UI automatically
+        return !response.error;
       },
       
       createSuggestion: async (type, targetPersonId, personData, message) => {
