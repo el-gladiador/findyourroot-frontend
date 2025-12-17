@@ -14,7 +14,7 @@ const SettingsTab = () => {
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showIdentityModal, setShowIdentityModal] = useState(false);
   const [requestMessage, setRequestMessage] = useState('');
-  const [requestRole, setRequestRole] = useState<'editor' | 'admin'>('editor');
+  const [requestRole, setRequestRole] = useState<'contributor' | 'editor' | 'co-admin' | 'admin'>('contributor');
   const [requestStatus, setRequestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
   const [statusMessage, setStatusMessage] = useState('');
   const [isExporting, setIsExporting] = useState(false);
@@ -353,10 +353,12 @@ const SettingsTab = () => {
                   </label>
                   <select
                     value={requestRole}
-                    onChange={(e) => setRequestRole(e.target.value as 'editor' | 'admin')}
+                    onChange={(e) => setRequestRole(e.target.value as 'contributor' | 'editor' | 'co-admin' | 'admin')}
                     className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                   >
-                    <option value="editor">Editor (Can add/edit people)</option>
+                    <option value="contributor">Contributor (Can suggest changes)</option>
+                    <option value="editor">Editor (Can add/edit directly)</option>
+                    <option value="co-admin">Co-Admin (Can approve suggestions)</option>
                     <option value="admin">Admin (Full access)</option>
                   </select>
                 </div>

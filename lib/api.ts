@@ -157,7 +157,7 @@ export class ApiClient {
     });
   }
 
-  static async requestPermission(requestedRole: 'editor' | 'admin', message?: string): Promise<ApiResponse<any>> {
+  static async requestPermission(requestedRole: 'contributor' | 'editor' | 'co-admin' | 'admin', message?: string): Promise<ApiResponse<any>> {
     return this.request('/api/v1/auth/request-permission', {
       method: 'POST',
       body: JSON.stringify({ requested_role: requestedRole, message }),
@@ -180,6 +180,67 @@ export class ApiClient {
   static async rejectPermissionRequest(id: string): Promise<ApiResponse<any>> {
     return this.request(`/api/v1/admin/permission-requests/${id}/reject`, {
       method: 'POST',
+    });
+  }
+
+  // User management endpoints (admin only)
+  static async getAllUsers(): Promise<ApiResponse<any[]>> {
+    return this.request('/api/v1/admin/users', {
+      method: 'GET',
+    });
+  }
+
+  static async updateUserRole(userId: string, role: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/v1/admin/users/${userId}/role`, {
+      method: 'PUT',
+      body: JSON.stringify({ role }),
+    });
+  }
+
+  static async revokeUserAccess(userId: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/v1/admin/users/${userId}/access`, {
+      method: 'DELETE',
+    });
+  }
+
+  // Suggestion endpoints (contributors)
+  static async createSuggestion(suggestion: {
+    type: 'add' | 'edit' | 'delete';
+    target_person_id?: string;
+    person_data?: {
+      name: string;
+      role: string;
+      birth: string;
+      location: string;
+      avatar?: string;
+      bio?: string;
+    };
+    message?: string;
+  }): Promise<ApiResponse<{ id: string; message: string }>> {
+    return this.request('/api/v1/suggestions', {
+      method: 'POST',
+      body: JSON.stringify(suggestion),
+    });
+  }
+
+  static async getMySuggestions(status?: string): Promise<ApiResponse<any[]>> {
+    const params = status ? `?status=${status}` : '';
+    return this.request(`/api/v1/suggestions/my${params}`, {
+      method: 'GET',
+    });
+  }
+
+  // Admin/co-admin suggestion endpoints
+  static async getAllSuggestions(status = 'pending'): Promise<ApiResponse<any[]>> {
+    return this.request(`/api/v1/admin/suggestions?status=${status}`, {
+      method: 'GET',
+    });
+  }
+
+  static async reviewSuggestion(id: string, approved: boolean, reviewNotes?: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/v1/admin/suggestions/${id}/review`, {
+      method: 'POST',
+      body: JSON.stringify({ approved, review_notes: reviewNotes }),
     });
   }
 
