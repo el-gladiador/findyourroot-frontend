@@ -22,11 +22,11 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
   canEdit = true,
   isSelected = false 
 }) => {
-  // Smooth transition for expand/collapse
-  const smoothTransition = {
+  // Layout transition for shared elements - must match ExpandedPersonCard
+  const layoutTransition = {
     type: 'tween' as const,
-    duration: 0.35,
-    ease: [0.4, 0, 0.2, 1] as const, // ease-out cubic
+    duration: 0.3,
+    ease: [0.4, 0, 0.2, 1] as const,
   };
 
   // When selected, hide content but keep layout space
@@ -37,7 +37,7 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
         <div className="relative w-20 h-20 mb-2">
           <motion.div
             layoutId={`card-${person.id}`}
-            transition={smoothTransition}
+            transition={layoutTransition}
             style={{ 
               width: 80,
               height: 80,
@@ -65,7 +65,7 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
         {/* Main Circle - This morphs into the card */}
         <motion.div
           layoutId={`card-${person.id}`}
-          transition={smoothTransition}
+          transition={layoutTransition}
           style={{ 
             borderRadius: 40, // Start as perfect circle (half of 80px)
           }}
@@ -74,7 +74,7 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
           {/* Avatar Image inside the morphing container */}
           <motion.img 
             layoutId={`avatar-img-${person.id}`}
-            transition={smoothTransition}
+            transition={layoutTransition}
             src={person.avatar} 
             alt={person.name} 
             className="w-full h-full object-cover"
@@ -84,7 +84,7 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
         {/* Role Badge */}
         <motion.div
           layoutId={`role-${person.id}`}
-          transition={smoothTransition}
+          transition={layoutTransition}
           className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-slate-800 dark:bg-white px-2 py-0.5 rounded-full whitespace-nowrap shadow-md z-10"
         >
           <span className="text-white dark:text-slate-900 text-[10px] font-bold">
@@ -120,7 +120,7 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
       {/* Name */}
       <motion.div
         layoutId={`name-${person.id}`}
-        transition={smoothTransition}
+        transition={layoutTransition}
         className="text-center"
       >
         <h4 className="text-xs font-bold text-slate-800 dark:text-white leading-tight mb-0.5">

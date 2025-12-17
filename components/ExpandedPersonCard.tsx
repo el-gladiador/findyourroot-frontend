@@ -30,11 +30,17 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
   const removePerson = useAppStore((state) => state.removePerson);
   const [isDeleting, setIsDeleting] = useState(false);
   
-  // Smooth tween transition matching TreeNode
-  const smoothTransition = {
+  // Layout transition for shared elements
+  const layoutTransition = {
     type: 'tween' as const,
-    duration: 0.35,
+    duration: 0.3,
     ease: [0.4, 0, 0.2, 1] as const,
+  };
+  
+  // Fast fade for non-shared elements on exit
+  const contentTransition = {
+    duration: 0.15,
+    ease: 'easeOut' as const,
   };
 
   const handleDelete = async () => {
@@ -67,19 +73,19 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        transition={{ duration: 0.2 }}
+        transition={contentTransition}
         className="fixed inset-0 z-[99998] bg-black/70"
         onClick={onClose}
       />
 
       {/* Card positioned at center */}
       <div className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none p-4">
-        {/* The circle morphs into this card - starts as circle (borderRadius: 40) ends as rounded rect (borderRadius: 24) */}
+        {/* The circle morphs into this card */}
         <motion.div
           layoutId={`card-${person.id}`}
-          transition={smoothTransition}
+          transition={layoutTransition}
           style={{ 
-            borderRadius: 24, // Morphs from 40 (circle) to 24 (rounded rect)
+            borderRadius: 24,
           }}
           className="relative w-full max-w-sm bg-white dark:bg-slate-800 shadow-2xl overflow-hidden pointer-events-auto"
         >
@@ -88,7 +94,7 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ delay: 0.15, duration: 0.2 }}
+            transition={contentTransition}
             onClick={onClose}
             className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/20 flex items-center justify-center text-white hover:bg-black/30 active:scale-95 transition-all"
           >
@@ -100,7 +106,7 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ delay: 0.1, duration: 0.2 }}
+            transition={contentTransition}
             className="h-24 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500" 
           />
 
@@ -114,13 +120,13 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 0.4 }}
                   exit={{ opacity: 0 }}
-                  transition={{ delay: 0.2, duration: 0.3 }}
+                  transition={contentTransition}
                   className="absolute inset-0 w-24 h-24 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 blur-xl" 
                 />
                 <div className="relative w-24 h-24 rounded-full border-4 border-white dark:border-slate-800 overflow-hidden shadow-xl">
                   <motion.img
                     layoutId={`avatar-img-${person.id}`}
-                    transition={smoothTransition}
+                    transition={layoutTransition}
                     src={person.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=6366f1&color=fff&size=96`}
                     alt={person.name}
                     className="w-full h-full object-cover"
@@ -133,7 +139,7 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
             <div className="flex justify-center mb-2">
               <motion.div
                 layoutId={`role-${person.id}`}
-                transition={smoothTransition}
+                transition={layoutTransition}
                 className="px-4 py-1.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-full"
               >
                 <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
@@ -145,7 +151,7 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
             {/* Name - Shared Element */}
             <motion.div
               layoutId={`name-${person.id}`}
-              transition={smoothTransition}
+              transition={layoutTransition}
               className="text-center mb-4"
             >
               <h2 className="text-2xl font-bold text-slate-800 dark:text-white">
@@ -153,12 +159,12 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
               </h2>
             </motion.div>
 
-            {/* Info Cards - Fade in */}
+            {/* Info Cards - Fade in/out quickly */}
             <motion.div
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ delay: 0.15, duration: 0.25 }}
+              exit={{ opacity: 0, y: 10 }}
+              transition={contentTransition}
               className="space-y-2.5"
             >
               {/* Birth Info */}
@@ -216,8 +222,8 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
             <motion.div
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{ delay: 0.2, duration: 0.25 }}
+              exit={{ opacity: 0, y: 5 }}
+              transition={contentTransition}
               className="flex gap-2 mt-4"
             >
               {/* Add Child Button */}

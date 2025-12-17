@@ -973,7 +973,7 @@ const TreeTab = () => {
     </div>
     
     {/* Expanded Person Card with Shared Element Transition */}
-    <AnimatePresence>
+    <AnimatePresence mode="popLayout">
       {selectedPerson && (
         <ExpandedPersonCard 
           person={selectedPerson} 
