@@ -92,9 +92,6 @@ export default function App() {
       document.documentElement.classList.toggle('dark', e.matches);
     };
     
-    // Apply current system preference
-    document.documentElement.classList.toggle('dark', mediaQuery.matches);
-    
     mediaQuery.addEventListener('change', handler);
     return () => mediaQuery.removeEventListener('change', handler);
   }, [settings.theme]);
