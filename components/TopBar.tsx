@@ -1,17 +1,15 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { TreeDeciduous, Sun, Moon, Search, X, Loader2 } from 'lucide-react';
+import { TreeDeciduous, Search, X, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { ApiClient } from '@/lib/api';
 
 interface TopBarProps {
   title: string;
   rightAction?: React.ReactNode;
-  isDarkMode: boolean;
-  toggleTheme: () => void;
   showSearch?: boolean;
 }
 
-const TopBar: React.FC<TopBarProps> = ({ title, rightAction, isDarkMode, toggleTheme, showSearch = false }) => {
+const TopBar: React.FC<TopBarProps> = ({ title, rightAction, showSearch = false }) => {
   const [searchInput, setSearchInput] = useState('');
   const [isSearching, setIsSearching] = useState(false);
   const [searchExpanded, setSearchExpanded] = useState(false);
@@ -81,45 +79,45 @@ const TopBar: React.FC<TopBarProps> = ({ title, rightAction, isDarkMode, toggleT
           </div>
         )}
         
-        {/* Search bar (show on tree tab) */}
-        {showSearch && (
-          <div className={`flex items-center gap-2 ${searchExpanded ? 'flex-1' : ''}`}>
-            {searchExpanded && (
-              <div className="flex-1 relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-                <input
-                  ref={inputRef}
-                  type="text"
-                  placeholder="Search family member..."
-                  value={searchInput}
-                  onChange={(e) => setSearchInput(e.target.value)}
-                  className="w-full pl-9 pr-8 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
-                />
-                {isSearching && (
-                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-indigo-500" />
-                )}
-              </div>
-            )}
+        {/* Right side - Search button or rightAction */}
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {showSearch && !searchExpanded && (
             <button
               onClick={toggleSearchExpanded}
               className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
             >
-              {searchExpanded ? <X size={20} /> : <Search size={20} />}
+              <Search size={20} />
             </button>
-          </div>
-        )}
-        
-        {/* Right side - Theme toggle */}
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <button 
-            onClick={toggleTheme}
-            className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
-          >
-            {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
-          </button>
+          )}
           {rightAction}
         </div>
       </div>
+      
+      {/* Expanded search bar - full width below header */}
+      {showSearch && searchExpanded && (
+        <div className="px-4 pb-3 flex items-center gap-2">
+          <div className="flex-1 relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
+            <input
+              ref={inputRef}
+              type="text"
+              placeholder="Search family member..."
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              className="w-full pl-9 pr-8 py-2 bg-slate-100 dark:bg-slate-800 rounded-lg text-sm text-slate-900 dark:text-white placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+            />
+            {isSearching && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-indigo-500" />
+            )}
+          </div>
+          <button
+            onClick={toggleSearchExpanded}
+            className="p-2 rounded-lg bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 transition-colors"
+          >
+            <X size={20} />
+          </button>
+        </div>
+      )}
     </div>
   );
 };

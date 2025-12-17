@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Bell, Shield, Smartphone, ChevronRight, Download, Share2, LogOut, UserPlus, Loader2, UserCheck } from 'lucide-react';
+import { Bell, Shield, Smartphone, ChevronRight, Download, Share2, LogOut, UserPlus, Loader2, UserCheck, Sun, Moon, Monitor } from 'lucide-react';
 import ExportModal from '@/components/ExportModal';
 import IdentityClaimModal from '@/components/IdentityClaimModal';
 import { useAppStore } from '@/lib/store';
@@ -22,6 +22,37 @@ const SettingsTab = () => {
   const familyData = useAppStore((state) => state.familyData);
   const user = useAppStore((state) => state.user);
   const logout = useAppStore((state) => state.logout);
+  const settings = useAppStore((state) => state.settings);
+  const updateSettings = useAppStore((state) => state.updateSettings);
+
+  // Apply theme to document
+  useEffect(() => {
+    const applyTheme = (theme: 'light' | 'dark' | 'system') => {
+      if (theme === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.classList.toggle('dark', prefersDark);
+      } else {
+        document.documentElement.classList.toggle('dark', theme === 'dark');
+      }
+    };
+    
+    applyTheme(settings.theme);
+    
+    // Listen for system theme changes when in system mode
+    if (settings.theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handler = (e: MediaQueryListEvent) => {
+        document.documentElement.classList.toggle('dark', e.matches);
+      };
+      mediaQuery.addEventListener('change', handler);
+      return () => mediaQuery.removeEventListener('change', handler);
+    }
+  }, [settings.theme]);
+
+  const handleThemeChange = (theme: 'light' | 'dark' | 'system') => {
+    updateSettings({ theme });
+    localStorage.setItem('theme', theme);
+  };
 
   // Load settings from localStorage
   useEffect(() => {
@@ -154,6 +185,55 @@ const SettingsTab = () => {
               >
                 <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${offlineAccess ? 'right-1' : 'left-1'}`}></div>
               </button>
+            </div>
+          </div>
+        </section>
+
+        <section>
+          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-2">Appearance</h3>
+          <div className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 shadow-sm">
+            <div className="p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400 flex items-center justify-center">
+                  {settings.theme === 'dark' ? <Moon size={16} /> : settings.theme === 'light' ? <Sun size={16} /> : <Monitor size={16} />}
+                </div>
+                <span className="font-medium text-slate-800 dark:text-white">Theme</span>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => handleThemeChange('light')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    settings.theme === 'light'
+                      ? 'bg-indigo-500 text-white'
+                      : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                  }`}
+                >
+                  <Sun size={16} />
+                  Light
+                </button>
+                <button
+                  onClick={() => handleThemeChange('dark')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    settings.theme === 'dark'
+                      ? 'bg-indigo-500 text-white'
+                      : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                  }`}
+                >
+                  <Moon size={16} />
+                  Dark
+                </button>
+                <button
+                  onClick={() => handleThemeChange('system')}
+                  className={`flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-all ${
+                    settings.theme === 'system'
+                      ? 'bg-indigo-500 text-white'
+                      : 'bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-600'
+                  }`}
+                >
+                  <Monitor size={16} />
+                  Auto
+                </button>
+              </div>
             </div>
           </div>
         </section>

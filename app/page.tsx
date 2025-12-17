@@ -21,11 +21,12 @@ export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthChecking, setIsAuthChecking] = useState(true);
   const [activeTab, setActiveTab] = useState('home');
-  const [isDarkMode, setIsDarkMode] = useState(false);
   const { toast, showToast, hideToast } = useToast();
   
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
   const validateAuth = useAppStore((state) => state.validateAuth);
+  const settings = useAppStore((state) => state.settings);
+  const updateSettings = useAppStore((state) => state.updateSettings);
   
   // Enable real-time sync (Firestore listeners or polling)
   useRealtimeSync();
@@ -68,15 +69,11 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isAuthenticated, validateAuth]);
 
-  // Handle system preference and localStorage on mount
+  // Initialize theme from localStorage on mount
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme');
-    if (savedTheme === 'dark') {
-      setIsDarkMode(true);
-    } else if (savedTheme === 'light') {
-      setIsDarkMode(false);
-    } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      setIsDarkMode(true);
+    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
+    if (savedTheme) {
+      updateSettings({ theme: savedTheme });
     }
 
     // Register service worker
@@ -90,50 +87,43 @@ export default function App() {
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, []);
+  }, [updateSettings]);
 
-  // Persist theme changes and apply to document
+  // Apply theme to document when settings change
   useEffect(() => {
-    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+    const applyTheme = () => {
+      if (settings.theme === 'system') {
+        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.classList.toggle('dark', prefersDark);
+      } else {
+        document.documentElement.classList.toggle('dark', settings.theme === 'dark');
+      }
+    };
     
-    // Apply dark class to html element for Tailwind
-    if (isDarkMode) {
-      document.documentElement.classList.add('dark');
-    } else {
-      document.documentElement.classList.remove('dark');
+    applyTheme();
+    
+    // Listen for system theme changes when in system mode
+    if (settings.theme === 'system') {
+      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+      const handler = () => applyTheme();
+      mediaQuery.addEventListener('change', handler);
+      return () => mediaQuery.removeEventListener('change', handler);
     }
-  }, [isDarkMode]);
+  }, [settings.theme]);
 
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyPress = (e: KeyboardEvent) => {
       // Tab switching with number keys (1-4)
       if (e.key >= '1' && e.key <= '4') {
-        const tabs = ['home', 'search', 'config', 'about'];
+        const tabs = ['home', 'admin', 'config', 'about'];
         setActiveTab(tabs[parseInt(e.key) - 1]);
-      }
-      
-      // Theme toggle with 't' key
-      if (e.key === 't' || e.key === 'T') {
-        setIsDarkMode(prev => !prev);
-        showToast({ 
-          type: 'info', 
-          message: `Theme switched to ${!isDarkMode ? 'dark' : 'light'} mode` 
-        });
       }
     };
 
     window.addEventListener('keydown', handleKeyPress);
     return () => window.removeEventListener('keydown', handleKeyPress);
-  }, [isDarkMode, showToast]);
-
-  const toggleTheme = () => {
-    setIsDarkMode(!isDarkMode);
-    showToast({ 
-      type: 'success', 
-      message: `Theme switched to ${!isDarkMode ? 'dark' : 'light'} mode` 
-    });
-  };
+  }, []);
 
   // Render logic
   const renderContent = () => {
@@ -166,10 +156,10 @@ export default function App() {
   // Show login page if not authenticated
   if (!isAuthenticated) {
     return (
-      <div className={isDarkMode ? 'dark' : ''}>
+      <>
         <LoginPage onSuccess={() => showToast({ type: 'success', message: 'Welcome back!' })} />
         {toast && <Toast {...toast} onClose={hideToast} />}
-      </div>
+      </>
     );
   }
 
@@ -177,13 +167,11 @@ export default function App() {
     <>
       {isLoading && <SplashScreen />}
       
-      <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'dark bg-slate-950' : 'bg-slate-50'}`} style={{ minHeight: '-webkit-fill-available' }}>
+      <div className="min-h-screen transition-colors duration-300 bg-slate-50 dark:bg-slate-950" style={{ minHeight: '-webkit-fill-available' }}>
         
         {/* Dynamic Top Bar */}
         <TopBar 
           title={getTitle()} 
-          isDarkMode={isDarkMode}
-          toggleTheme={toggleTheme}
           showSearch={activeTab === 'home'}
         />
 
