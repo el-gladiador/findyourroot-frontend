@@ -433,4 +433,24 @@ export class ApiClient {
       method: 'DELETE',
     });
   }
+
+  // Admin link user to person (without user request) - admin only
+  static async linkUserToPerson(userId: string, personId: string, instagramUsername?: string): Promise<ApiResponse<any>> {
+    return this.request('/api/v1/admin/link-user-to-person', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        user_id: userId, 
+        person_id: personId,
+        instagram_username: instagramUsername,
+      }),
+    });
+  }
+
+  // Update person's Instagram username - admin only
+  static async updatePersonInstagram(personId: string, instagramUsername: string): Promise<ApiResponse<any>> {
+    return this.request(`/api/v1/admin/person/${personId}/instagram`, {
+      method: 'PUT',
+      body: JSON.stringify({ instagram_username: instagramUsername }),
+    });
+  }
 }

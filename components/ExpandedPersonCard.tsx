@@ -2,7 +2,7 @@
 
 import React, { memo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, MapPin, Calendar, FileText, Edit3, Trash2, UserPlus, Clock, Loader2 } from 'lucide-react';
+import { X, Calendar, Edit3, Trash2, UserPlus, Clock, Loader2, Instagram } from 'lucide-react';
 import { Person } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
 
@@ -168,37 +168,45 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
               className="space-y-2.5"
             >
               {/* Birth Info */}
-              <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                <div className="w-9 h-9 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
-                  <Calendar size={16} className="text-amber-600 dark:text-amber-400" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Birth Year</p>
-                  <p className="text-sm font-semibold text-slate-800 dark:text-white">{person.birth || 'Unknown'}</p>
-                </div>
-              </div>
-
-              {/* Location Info */}
-              <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
-                  <MapPin size={16} className="text-emerald-600 dark:text-emerald-400" />
-                </div>
-                <div>
-                  <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Location</p>
-                  <p className="text-sm font-semibold text-slate-800 dark:text-white">{person.location || 'Unknown'}</p>
-                </div>
-              </div>
-
-              {/* Bio */}
-              {person.bio && (
-                <div className="flex items-start gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
-                  <div className="w-9 h-9 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
-                    <FileText size={16} className="text-blue-600 dark:text-blue-400" />
+              {person.birth && (
+                <div className="flex items-center gap-3 p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl">
+                  <div className="w-9 h-9 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                    <Calendar size={16} className="text-amber-600 dark:text-amber-400" />
                   </div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Bio</p>
-                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">{person.bio}</p>
+                  <div>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Birth Year</p>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-white">{person.birth}</p>
                   </div>
+                </div>
+              )}
+
+              {/* Instagram Link - Only show if person is linked to a user */}
+              {person.linked_user_id && person.instagram_username && (
+                <a
+                  href={`https://instagram.com/${person.instagram_username}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl hover:from-purple-100 hover:to-pink-100 dark:hover:from-purple-900/30 dark:hover:to-pink-900/30 transition-colors"
+                >
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center flex-shrink-0">
+                    <Instagram size={16} className="text-white" />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Instagram</p>
+                    <p className="text-sm font-semibold text-slate-800 dark:text-white">@{person.instagram_username}</p>
+                  </div>
+                </a>
+              )}
+
+              {/* Linked Account Badge - Show if linked but no Instagram */}
+              {person.linked_user_id && !person.instagram_username && (
+                <div className="flex items-center gap-2 p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
+                  <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center">
+                    <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                    </svg>
+                  </div>
+                  <span className="text-xs font-medium text-emerald-700 dark:text-emerald-300">Verified Family Member</span>
                 </div>
               )}
             </motion.div>

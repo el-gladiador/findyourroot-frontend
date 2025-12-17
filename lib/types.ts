@@ -7,12 +7,13 @@ export interface Person {
   name: string;
   role: string;
   birth: string;
-  location: string;
+  location?: string; // Legacy, optional
   avatar: string;
-  bio: string;
+  bio?: string; // Legacy, optional
   children: string[];
   created_by?: string; // User ID of creator
   linked_user_id?: string; // User ID if someone claimed this identity
+  instagram_username?: string; // Instagram handle (only shown if linked_user_id is set)
 }
 
 export interface User {
@@ -65,10 +66,11 @@ export type SuggestionType = 'add' | 'edit' | 'delete';
 export interface PersonData {
   name: string;
   role: string;
-  birth: string;
-  location: string;
+  birth?: string;
+  location?: string;
   avatar?: string;
   bio?: string;
+  instagram_username?: string;
 }
 
 export interface Suggestion {

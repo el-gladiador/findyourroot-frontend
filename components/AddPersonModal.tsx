@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, User, Calendar, MapPin, FileText, UserPlus, Image, Wand2, Clock } from 'lucide-react';
+import { X, User, Calendar, UserPlus, Clock, Wand2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 
 interface AddPersonModalProps {
@@ -15,32 +15,16 @@ interface AddPersonModalProps {
 const firstNames = ['James', 'Mary', 'John', 'Patricia', 'Robert', 'Jennifer', 'Michael', 'Linda', 'William', 'Elizabeth', 'David', 'Barbara', 'Richard', 'Susan', 'Joseph', 'Jessica', 'Thomas', 'Sarah', 'Charles', 'Karen', 'Christopher', 'Nancy', 'Daniel', 'Lisa', 'Matthew', 'Betty', 'Anthony', 'Margaret', 'Mark', 'Sandra', 'Donald', 'Ashley', 'Steven', 'Kimberly', 'Paul', 'Emily', 'Andrew', 'Donna', 'Joshua', 'Michelle'];
 const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin', 'Lee', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Lewis', 'Robinson', 'Walker', 'Young'];
 const roles = ['Father', 'Mother', 'Son', 'Daughter', 'Uncle', 'Aunt', 'Grandfather', 'Grandmother', 'Brother', 'Sister', 'Cousin', 'Nephew', 'Niece'];
-const locations = ['London, UK', 'Manchester, UK', 'Birmingham, UK', 'Leeds, UK', 'Glasgow, Scotland', 'Liverpool, UK', 'Edinburgh, Scotland', 'Bristol, UK', 'Cardiff, Wales', 'Sheffield, UK', 'New York, USA', 'Los Angeles, USA', 'Chicago, USA', 'Paris, France', 'Berlin, Germany', 'Madrid, Spain', 'Rome, Italy', 'Toronto, Canada', 'Sydney, Australia', 'Tokyo, Japan'];
-const bios = [
-  'A loving family member with a passion for gardening.',
-  'Enjoys reading, traveling, and spending time with family.',
-  'Retired teacher who loves classical music.',
-  'Avid sports fan and outdoor enthusiast.',
-  'Works in technology and loves innovation.',
-  'Chef who enjoys experimenting with new recipes.',
-  'Artist with a passion for painting landscapes.',
-  'Musician who plays guitar in a local band.',
-  'Veterinarian who cares deeply about animals.',
-  'Architect with an eye for modern design.',
-];
 
 const generateRandomData = () => {
   const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
   const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-  const currentYear = new Date().getFullYear();
   const birthYear = Math.floor(Math.random() * (2010 - 1940 + 1)) + 1940;
   
   return {
     name: `${firstName} ${lastName}`,
     role: roles[Math.floor(Math.random() * roles.length)],
     birth: birthYear.toString(),
-    location: locations[Math.floor(Math.random() * locations.length)],
-    bio: bios[Math.floor(Math.random() * bios.length)],
     avatar: '',
   };
 };
@@ -69,9 +53,7 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSu
       name: formData.name,
       role: formData.role,
       birth: formData.birth,
-      location: formData.location,
-      bio: formData.bio,
-      avatar: formData.avatar, // Send empty string if not set - backend will generate default
+      avatar: formData.avatar,
       children: [],
     }, parentId);
 
@@ -166,58 +148,14 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSu
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               <Calendar size={16} />
-              Birth Year *
+              Birth Year (optional)
             </label>
             <input
               type="text"
-              required
               value={formData.birth}
               onChange={(e) => setFormData({ ...formData, birth: e.target.value })}
               className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white"
               placeholder="1990"
-            />
-          </div>
-
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              <MapPin size={16} />
-              Location *
-            </label>
-            <input
-              type="text"
-              required
-              value={formData.location}
-              onChange={(e) => setFormData({ ...formData, location: e.target.value })}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white"
-              placeholder="London, UK"
-            />
-          </div>
-
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              <Image size={16} />
-              Avatar URL (optional)
-            </label>
-            <input
-              type="url"
-              value={formData.avatar}
-              onChange={(e) => setFormData({ ...formData, avatar: e.target.value })}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white"
-              placeholder="https://... (leave empty for auto-generated)"
-            />
-          </div>
-
-          <div>
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              <FileText size={16} />
-              Bio (optional)
-            </label>
-            <textarea
-              value={formData.bio}
-              onChange={(e) => setFormData({ ...formData, bio: e.target.value })}
-              rows={3}
-              className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white resize-none"
-              placeholder="Tell us about this person..."
             />
           </div>
 
