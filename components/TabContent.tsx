@@ -3,7 +3,6 @@
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/lib/store';
 import TreeTab from './tabs/TreeTab';
-import SearchTab from './tabs/SearchTab';
 import SettingsTab from './tabs/SettingsTab';
 import AboutTab from './tabs/AboutTab';
 
@@ -28,8 +27,6 @@ export default function TabContent() {
     switch (currentTab) {
       case 'tree':
         return <TreeTab />;
-      case 'search':
-        return <SearchTab />;
       case 'settings':
         return <SettingsTab />;
       case 'about':

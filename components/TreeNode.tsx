@@ -1,7 +1,7 @@
 'use client';
 
 import React, { memo } from 'react';
-import { motion, LayoutGroup } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Plus } from 'lucide-react';
 import { Person } from '@/lib/types';
 
@@ -22,58 +22,70 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
   canEdit = true,
   isSelected = false 
 }) => {
-  // Optimized spring transition - GPU accelerated
+  // Optimized spring transition
   const springTransition = {
     type: 'spring' as const,
-    stiffness: 500,
-    damping: 35,
-    mass: 0.5,
+    stiffness: 400,
+    damping: 30,
+    mass: 0.8,
   };
 
-  // Don't render shared elements when selected (they're in the expanded card)
+  // When selected, hide content but keep layout space
   if (isSelected) {
     return (
-      <div 
-        className={`relative flex flex-col items-center group tree-node-clickable ${isSpouse ? 'mt-4 md:mt-0 md:ml-4' : ''}`}
-      >
-        {/* Placeholder to maintain layout */}
-        <div className="w-20 h-20 mb-2 opacity-0" />
-        <div className="text-center opacity-0">
-          <h4 className="text-xs font-bold leading-tight mb-0.5">{person.name}</h4>
-          <span className="text-[10px]">{person.birth}</span>
+      <div className={`relative flex flex-col items-center group tree-node-clickable ${isSpouse ? 'mt-4 md:mt-0 md:ml-4' : ''}`}>
+        {/* Invisible placeholder for avatar */}
+        <div className="relative w-20 h-20 mb-2">
+          <motion.div
+            layoutId={`card-${person.id}`}
+            transition={springTransition}
+            style={{ 
+              willChange: 'transform',
+              width: 80,
+              height: 80,
+              borderRadius: 40,
+            }}
+            className="absolute inset-0"
+          />
         </div>
+        {/* Invisible placeholders for text */}
+        <div className="text-center invisible">
+          <h4 className="text-xs font-bold leading-tight mb-0.5">{person.name}</h4>
+        </div>
+        <span className="text-[10px] invisible">{person.birth}</span>
       </div>
     );
   }
 
   return (
-    <div 
-      className={`relative flex flex-col items-center group tree-node-clickable ${isSpouse ? 'mt-4 md:mt-0 md:ml-4' : ''}`}
-    >
-      {/* Avatar Container - This is what morphs into the card */}
-      <div 
-        className="relative w-20 h-20 mb-2 cursor-pointer tree-node-clickable" 
-        onClick={onClick}
-      >
-        {/* Pulse Ring - not animated */}
+    <div className={`relative flex flex-col items-center group tree-node-clickable ${isSpouse ? 'mt-4 md:mt-0 md:ml-4' : ''}`}>
+      {/* Avatar Container */}
+      <div className="relative w-20 h-20 mb-2 cursor-pointer tree-node-clickable" onClick={onClick}>
+        {/* Pulse Ring */}
         <div className={`absolute inset-0 rounded-full border-2 ${isSpouse ? 'border-rose-400' : 'border-indigo-500'} opacity-20 animate-pulse`} />
         
-        {/* Avatar Circle - Shared Element that morphs into card */}
+        {/* Main Circle - This morphs into the card */}
         <motion.div
-          layoutId={`avatar-container-${person.id}`}
+          layoutId={`card-${person.id}`}
           transition={springTransition}
-          style={{ willChange: 'transform' }}
-          className={`relative w-full h-full rounded-full border-2 ${isSpouse ? 'border-rose-400' : 'border-indigo-500'} bg-slate-50 overflow-hidden shadow-sm`}
+          style={{ 
+            willChange: 'transform',
+            borderRadius: 40, // Start as perfect circle (half of 80px)
+          }}
+          className={`relative w-full h-full border-2 ${isSpouse ? 'border-rose-400' : 'border-indigo-500'} bg-white dark:bg-slate-800 overflow-hidden shadow-lg`}
         >
-          <img 
+          {/* Avatar Image inside the morphing container */}
+          <motion.img 
+            layoutId={`avatar-img-${person.id}`}
+            transition={springTransition}
             src={person.avatar} 
             alt={person.name} 
             className="w-full h-full object-cover"
-            loading="lazy"
+            style={{ willChange: 'transform' }}
           />
         </motion.div>
 
-        {/* Role Badge - Shared Element */}
+        {/* Role Badge */}
         <motion.div
           layoutId={`role-${person.id}`}
           transition={springTransition}
@@ -85,35 +97,32 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
           </span>
         </motion.div>
 
-        {/* Add Child Button - Shared Element */}
+        {/* Add Child Button - No morph, just regular button */}
         {onAddChild && canEdit && (
-          <motion.button
-            layoutId={`add-btn-${person.id}`}
-            transition={springTransition}
-            style={{ willChange: 'transform' }}
+          <button
             onClick={(e) => {
               e.stopPropagation();
               onAddChild();
             }}
-            className="absolute -right-1 top-0 w-6 h-6 rounded-full flex items-center justify-center shadow-lg bg-indigo-600 hover:bg-indigo-700 text-white z-10 tree-node-clickable"
+            className="absolute -right-1 top-0 w-6 h-6 rounded-full flex items-center justify-center shadow-lg bg-indigo-600 hover:bg-indigo-700 text-white z-10 tree-node-clickable active:scale-95 transition-transform"
             title="Add child"
           >
             <Plus size={14} strokeWidth={3} />
-          </motion.button>
+          </button>
         )}
         
-        {/* Disabled add button for non-editors */}
+        {/* Disabled add button */}
         {onAddChild && !canEdit && (
           <div
             className="absolute -right-1 top-0 w-6 h-6 rounded-full flex items-center justify-center shadow-lg bg-gray-400 dark:bg-gray-600 text-gray-200 dark:text-gray-400 cursor-not-allowed opacity-50 z-10"
-            title="View only - No edit permission"
+            title="View only"
           >
             <Plus size={14} strokeWidth={3} />
           </div>
         )}
       </div>
 
-      {/* Name - Shared Element */}
+      {/* Name */}
       <motion.div
         layoutId={`name-${person.id}`}
         transition={springTransition}
@@ -125,7 +134,7 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
         </h4>
       </motion.div>
       
-      {/* Birth - Not animated */}
+      {/* Birth */}
       <span className="text-[10px] text-slate-500">{person.birth}</span>
     </div>
   );

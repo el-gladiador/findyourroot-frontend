@@ -22,17 +22,17 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
   onAddChild,
   canEdit = false,
 }) => {
-  // Optimized spring transition - GPU accelerated
+  // Spring transition matching TreeNode
   const springTransition = {
     type: 'spring' as const,
-    stiffness: 500,
-    damping: 35,
-    mass: 0.5,
+    stiffness: 400,
+    damping: 30,
+    mass: 0.8,
   };
 
   return (
     <>
-      {/* Backdrop - Simple fade, no blur for performance */}
+      {/* Backdrop */}
       <motion.div
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -44,11 +44,14 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
 
       {/* Card positioned at center */}
       <div className="fixed inset-0 z-[99999] flex items-center justify-center pointer-events-none p-4">
-        {/* The avatar circle morphs into this card container */}
+        {/* The circle morphs into this card - starts as circle (borderRadius: 40) ends as rounded rect (borderRadius: 24) */}
         <motion.div
-          layoutId={`avatar-container-${person.id}`}
+          layoutId={`card-${person.id}`}
           transition={springTransition}
-          style={{ willChange: 'transform', borderRadius: 24 }}
+          style={{ 
+            willChange: 'transform',
+            borderRadius: 24, // Morphs from 40 (circle) to 24 (rounded rect)
+          }}
           className="relative w-full max-w-sm bg-white dark:bg-slate-800 shadow-2xl overflow-hidden pointer-events-auto"
         >
           {/* Close Button */}
@@ -56,7 +59,7 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ delay: 0.1, duration: 0.2 }}
+            transition={{ delay: 0.15, duration: 0.2 }}
             onClick={onClose}
             className="absolute top-4 right-4 z-20 w-8 h-8 rounded-full bg-black/20 flex items-center justify-center text-white hover:bg-black/30 active:scale-95 transition-all"
           >
@@ -64,20 +67,35 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
           </motion.button>
 
           {/* Gradient Header */}
-          <div className="h-24 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500" />
+          <motion.div 
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ delay: 0.1, duration: 0.2 }}
+            className="h-24 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500" 
+          />
 
           {/* Content Section */}
           <div className="relative px-5 pb-5">
-            {/* Avatar - positioned to overlap header */}
+            {/* Avatar - morphs from full-size to smaller centered */}
             <div className="flex justify-center -mt-12 mb-3">
               <div className="relative">
                 {/* Glow effect */}
-                <div className="absolute inset-0 w-24 h-24 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 blur-xl opacity-40" />
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 0.4 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ delay: 0.2, duration: 0.3 }}
+                  className="absolute inset-0 w-24 h-24 rounded-full bg-gradient-to-br from-indigo-400 to-purple-500 blur-xl" 
+                />
                 <div className="relative w-24 h-24 rounded-full border-4 border-white dark:border-slate-800 overflow-hidden shadow-xl">
-                  <img
+                  <motion.img
+                    layoutId={`avatar-img-${person.id}`}
+                    transition={springTransition}
                     src={person.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=6366f1&color=fff&size=96`}
                     alt={person.name}
                     className="w-full h-full object-cover"
+                    style={{ willChange: 'transform' }}
                   />
                 </div>
               </div>
@@ -114,7 +132,7 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              transition={{ delay: 0.1, duration: 0.25 }}
+              transition={{ delay: 0.15, duration: 0.25 }}
               className="space-y-2.5"
             >
               {/* Birth Info */}
@@ -158,21 +176,18 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0 }}
-              transition={{ delay: 0.15, duration: 0.25 }}
+              transition={{ delay: 0.2, duration: 0.25 }}
               className="flex gap-2 mt-4"
             >
-              {/* Add Child Button - Shared Element */}
+              {/* Add Child Button */}
               {canEdit && onAddChild && (
-                <motion.button
-                  layoutId={`add-btn-${person.id}`}
-                  transition={springTransition}
-                  style={{ willChange: 'transform' }}
+                <button
                   onClick={onAddChild}
                   className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-500 text-white rounded-xl font-semibold shadow-lg shadow-emerald-500/20 active:scale-[0.98] transition-transform"
                 >
                   <UserPlus size={18} />
                   <span>Add Child</span>
-                </motion.button>
+                </button>
               )}
 
               {/* Edit Button */}

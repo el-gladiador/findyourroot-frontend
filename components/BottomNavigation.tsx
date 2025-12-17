@@ -1,5 +1,5 @@
 import React from 'react';
-import { TreeDeciduous, Search, Settings, Info, Shield } from 'lucide-react';
+import { TreeDeciduous, Settings, Info, Shield } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 
 interface BottomNavigationProps {
@@ -13,9 +13,8 @@ const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab, setActiv
   
   const tabs = [
     { id: 'home', icon: TreeDeciduous, label: 'Tree' },
-    { id: 'search', icon: Search, label: 'Search' },
     ...(isAdmin ? [{ id: 'admin', icon: Shield, label: 'Admin' }] : []),
-    { id: 'config', icon: Settings, label: 'Config' },
+    { id: 'config', icon: Settings, label: 'Settings' },
     { id: 'about', icon: Info, label: 'About' }
   ];
 

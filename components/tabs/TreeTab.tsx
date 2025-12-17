@@ -1,11 +1,13 @@
-import React, { useState, useRef, useEffect, useMemo } from 'react';
-import { AnimatePresence } from 'framer-motion';
-import { Heart, Plus, ZoomIn, ZoomOut, Maximize2, Trash2 } from 'lucide-react';
+import React, { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { Heart, Plus, ZoomIn, ZoomOut, Maximize2, Trash2, Search, X, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import TreeNode from '@/components/TreeNode';
 import ExpandedPersonCard from '@/components/ExpandedPersonCard';
 import AddPersonModal from '@/components/AddPersonModal';
 import { Person } from '@/lib/types';
+import { ApiClient } from '@/lib/api';
+import { useDebounce } from '@/lib/swipe-hooks';
 
 const TreeTab = () => {
   const familyData = useAppStore((state) => state.familyData);
@@ -15,6 +17,14 @@ const TreeTab = () => {
   const [showAddModal, setShowAddModal] = useState(false);
   const [parentForNewPerson, setParentForNewPerson] = useState<string | undefined>(undefined);
   const [permissionWarning, setPermissionWarning] = useState<string | null>(null);
+  
+  // Search state
+  const [searchInput, setSearchInput] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
+  const [isSearching, setIsSearching] = useState(false);
+  const [searchResult, setSearchResult] = useState<Person | null>(null);
+  const searchTerm = useDebounce(searchInput, 300);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   
   // Check if user can edit
   const canEdit = user?.role === 'editor' || user?.role === 'admin';
@@ -119,6 +129,89 @@ const TreeTab = () => {
     
     setScale(optimalScale);
     setTranslate({ x: 0, y: 0 });
+  };
+
+  // Focus on a specific person in the tree
+  const focusOnPerson = useCallback((personId: string) => {
+    const nodeEl = nodeRefs.current.get(personId);
+    if (!nodeEl || !containerRef.current || !viewportRef.current) return;
+
+    const containerRect = containerRef.current.getBoundingClientRect();
+    const viewportRect = viewportRef.current.getBoundingClientRect();
+    const nodeRect = nodeEl.getBoundingClientRect();
+    
+    // Calculate node center position in unscaled container coordinates
+    const nodeCenterX = (nodeRect.left + nodeRect.width / 2 - containerRect.left) / scale;
+    const nodeCenterY = (nodeRect.top + nodeRect.height / 2 - containerRect.top) / scale;
+    
+    // Calculate container center
+    const containerCenterX = (containerRect.width / scale) / 2;
+    const containerCenterY = (containerRect.height / scale) / 2;
+    
+    // Calculate offset from container center to node
+    const offsetX = containerCenterX - nodeCenterX;
+    const offsetY = containerCenterY - nodeCenterY;
+    
+    // Set zoom to 1 for clear focus and translate to center the node
+    setScale(1);
+    setTranslate({ x: offsetX, y: offsetY - 50 }); // Offset up a bit for better view
+  }, [scale]);
+
+  // Perform search when term changes
+  useEffect(() => {
+    if (!searchTerm.trim()) {
+      setSearchResult(null);
+      return;
+    }
+
+    const performSearch = async () => {
+      setIsSearching(true);
+      try {
+        const response = await ApiClient.searchPeople({
+          q: searchTerm,
+          page: 1,
+          pageSize: 1, // Only get the best match
+        });
+
+        if (response.data && response.data.data.length > 0) {
+          const foundPerson = response.data.data[0];
+          setSearchResult({
+            ...foundPerson,
+            children: foundPerson.children || []
+          });
+        } else {
+          setSearchResult(null);
+        }
+      } catch (error) {
+        console.error('[TreeSearch] Error:', error);
+        setSearchResult(null);
+      } finally {
+        setIsSearching(false);
+      }
+    };
+
+    performSearch();
+  }, [searchTerm]);
+
+  // Focus on search result when found
+  useEffect(() => {
+    if (searchResult && nodeRefs.current.has(searchResult.id)) {
+      // Small delay to ensure the DOM is ready
+      setTimeout(() => {
+        focusOnPerson(searchResult.id);
+      }, 100);
+    }
+  }, [searchResult, focusOnPerson]);
+
+  // Toggle search bar
+  const toggleSearch = () => {
+    setShowSearch(prev => !prev);
+    if (!showSearch) {
+      setTimeout(() => searchInputRef.current?.focus(), 100);
+    } else {
+      setSearchInput('');
+      setSearchResult(null);
+    }
   };
 
   const handleWheel = (e: React.WheelEvent) => {
@@ -419,6 +512,80 @@ const TreeTab = () => {
       onTouchEnd={hasModalOpen ? undefined : handleTouchEnd}
       style={{ cursor: hasModalOpen ? 'default' : (isPanning ? 'grabbing' : 'grab'), touchAction: 'none' }}
     >
+      {/* Search Bar - Fixed at top */}
+      <div className="fixed top-4 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2">
+        <AnimatePresence>
+          {showSearch && (
+            <motion.div
+              initial={{ width: 0, opacity: 0 }}
+              animate={{ width: 280, opacity: 1 }}
+              exit={{ width: 0, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+              className="overflow-hidden"
+            >
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                <input 
+                  ref={searchInputRef}
+                  type="text" 
+                  placeholder="Search family member..." 
+                  value={searchInput}
+                  onChange={(e) => setSearchInput(e.target.value)}
+                  className="w-full pl-10 pr-10 py-2.5 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-slate-900 dark:text-white placeholder-slate-400 transition-all outline-none shadow-lg text-sm"
+                />
+                {isSearching && (
+                  <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 w-4 h-4 animate-spin text-indigo-500" />
+                )}
+                {!isSearching && searchInput && !searchResult && (
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-slate-400">No match</span>
+                )}
+                {!isSearching && searchResult && (
+                  <motion.div 
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center"
+                  >
+                    <span className="text-white text-xs">✓</span>
+                  </motion.div>
+                )}
+              </div>
+              {/* Search result preview */}
+              {searchResult && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="mt-2 p-3 bg-white dark:bg-slate-800 rounded-xl shadow-lg border border-slate-200 dark:border-slate-700 cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                  onClick={() => setSelectedPerson(searchResult)}
+                >
+                  <div className="flex items-center gap-3">
+                    <img 
+                      src={searchResult.avatar} 
+                      alt={searchResult.name}
+                      className="w-10 h-10 rounded-full object-cover border-2 border-indigo-500"
+                    />
+                    <div>
+                      <p className="font-semibold text-sm text-slate-800 dark:text-white">{searchResult.name}</p>
+                      <p className="text-xs text-indigo-500">{searchResult.role}</p>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+        <button
+          onClick={toggleSearch}
+          className={`w-10 h-10 rounded-xl shadow-lg flex items-center justify-center transition-all active:scale-95 ${
+            showSearch 
+              ? 'bg-indigo-600 text-white hover:bg-indigo-700' 
+              : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700'
+          }`}
+          title={showSearch ? 'Close search' : 'Search'}
+        >
+          {showSearch ? <X size={20} /> : <Search size={20} />}
+        </button>
+      </div>
+
       <div 
         className="absolute top-1/2 left-1/2"
         style={{
