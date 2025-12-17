@@ -61,6 +61,9 @@ const TreeTab = () => {
     // Velocity tracking for inertia
     velocityHistory: [] as Array<{ x: number; y: number; time: number }>,
     inertiaRafId: null as number | null,
+    // Tap vs drag detection
+    touchStartPos: { x: 0, y: 0 },
+    wasDragging: false, // Set true if movement exceeds threshold
   });
   
   // Physics constants
@@ -69,6 +72,7 @@ const TreeTab = () => {
   const FRICTION = 0.95;
   const MIN_VELOCITY = 0.1;
   const VELOCITY_HISTORY_SIZE = 5;
+  const DRAG_THRESHOLD = 8; // Pixels moved to be considered a drag
   
   // Keep refs in sync with state
   useEffect(() => {
@@ -299,17 +303,18 @@ const TreeTab = () => {
     gestureState.current.inertiaRafId = requestAnimationFrame(animate);
   }, [applyTransformToDOM, calculateVelocity]);
 
-  // Pan handlers - simple and fast
+  // Pan handlers - allow panning from anywhere, track if dragging occurred
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Don't pan if clicking on a node
-    if ((e.target as HTMLElement).closest('.tree-node-clickable')) return;
-    
     stopInertia();
-    gestureState.current.isPanning = true;
-    gestureState.current.velocityHistory = [{ x: e.clientX, y: e.clientY, time: Date.now() }];
-    gestureState.current.startPan = { 
-      x: e.clientX - gestureState.current.currentTranslate.x, 
-      y: e.clientY - gestureState.current.currentTranslate.y 
+    
+    const gs = gestureState.current;
+    gs.isPanning = true;
+    gs.wasDragging = false;
+    gs.touchStartPos = { x: e.clientX, y: e.clientY };
+    gs.velocityHistory = [{ x: e.clientX, y: e.clientY, time: Date.now() }];
+    gs.startPan = { 
+      x: e.clientX - gs.currentTranslate.x, 
+      y: e.clientY - gs.currentTranslate.y 
     };
     setIsPanning(true);
   };
@@ -317,33 +322,54 @@ const TreeTab = () => {
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!gestureState.current.isPanning) return;
     
-    const newX = e.clientX - gestureState.current.startPan.x;
-    const newY = e.clientY - gestureState.current.startPan.y;
+    const gs = gestureState.current;
     
-    // Track velocity
-    gestureState.current.velocityHistory.push({ x: e.clientX, y: e.clientY, time: Date.now() });
-    if (gestureState.current.velocityHistory.length > VELOCITY_HISTORY_SIZE) {
-      gestureState.current.velocityHistory.shift();
+    // Check if we've moved enough to be considered dragging
+    if (!gs.wasDragging) {
+      const dx = e.clientX - gs.touchStartPos.x;
+      const dy = e.clientY - gs.touchStartPos.y;
+      if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
+        gs.wasDragging = true;
+      } else {
+        // Not yet a drag, don't move anything
+        return;
+      }
     }
     
-    gestureState.current.currentTranslate = { x: newX, y: newY };
-    applyTransformToDOM(newX, newY, gestureState.current.currentScale);
+    const newX = e.clientX - gs.startPan.x;
+    const newY = e.clientY - gs.startPan.y;
+    
+    // Track velocity
+    gs.velocityHistory.push({ x: e.clientX, y: e.clientY, time: Date.now() });
+    if (gs.velocityHistory.length > VELOCITY_HISTORY_SIZE) {
+      gs.velocityHistory.shift();
+    }
+    
+    gs.currentTranslate = { x: newX, y: newY };
+    applyTransformToDOM(newX, newY, gs.currentScale);
   };
 
   const handleMouseUp = () => {
     if (!gestureState.current.isPanning) return;
     
-    gestureState.current.isPanning = false;
+    const gs = gestureState.current;
+    gs.isPanning = false;
     
-    // Calculate velocity for inertia
-    const velocity = calculateVelocity();
-    const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
-    
-    if (speed > MIN_VELOCITY) {
-      runInertia();
+    // If we dragged, apply inertia
+    if (gs.wasDragging) {
+      const velocity = calculateVelocity();
+      const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+      
+      if (speed > MIN_VELOCITY) {
+        runInertia();
+      } else {
+        setIsPanning(false);
+        setTranslate({ ...gs.currentTranslate });
+      }
     } else {
+      // It was a tap - just cleanup
       setIsPanning(false);
-      setTranslate({ ...gestureState.current.currentTranslate });
+      setTranslate({ ...gs.currentTranslate });
     }
   };
 
@@ -376,17 +402,18 @@ const TreeTab = () => {
       gestureState.current.pinchStartTranslate = { ...gestureState.current.currentTranslate };
       setIsPanning(true);
     } else if (e.touches.length === 1 && !gestureState.current.isPinching) {
-      // Single finger pan - don't start if on a node
-      if ((e.target as HTMLElement).closest('.tree-node-clickable')) return;
-      
+      // Single finger - could be tap or pan
       stopInertia();
       const touch = e.touches[0];
+      const gs = gestureState.current;
       
-      gestureState.current.isPanning = true;
-      gestureState.current.velocityHistory = [{ x: touch.clientX, y: touch.clientY, time: Date.now() }];
-      gestureState.current.startPan = { 
-        x: touch.clientX - gestureState.current.currentTranslate.x, 
-        y: touch.clientY - gestureState.current.currentTranslate.y 
+      gs.isPanning = true;
+      gs.wasDragging = false;
+      gs.touchStartPos = { x: touch.clientX, y: touch.clientY };
+      gs.velocityHistory = [{ x: touch.clientX, y: touch.clientY, time: Date.now() }];
+      gs.startPan = { 
+        x: touch.clientX - gs.currentTranslate.x, 
+        y: touch.clientY - gs.currentTranslate.y 
       };
       setIsPanning(true);
     }
@@ -433,18 +460,31 @@ const TreeTab = () => {
     } else if (e.touches.length === 1 && gestureState.current.isPanning && !gestureState.current.isPinching) {
       // Single finger pan
       const touch = e.touches[0];
+      const gs = gestureState.current;
       
-      const newX = touch.clientX - gestureState.current.startPan.x;
-      const newY = touch.clientY - gestureState.current.startPan.y;
-      
-      // Track velocity
-      gestureState.current.velocityHistory.push({ x: touch.clientX, y: touch.clientY, time: Date.now() });
-      if (gestureState.current.velocityHistory.length > VELOCITY_HISTORY_SIZE) {
-        gestureState.current.velocityHistory.shift();
+      // Check if we've moved enough to be considered dragging
+      if (!gs.wasDragging) {
+        const dx = touch.clientX - gs.touchStartPos.x;
+        const dy = touch.clientY - gs.touchStartPos.y;
+        if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
+          gs.wasDragging = true;
+        } else {
+          // Not yet a drag, don't move anything
+          return;
+        }
       }
       
-      gestureState.current.currentTranslate = { x: newX, y: newY };
-      applyTransformToDOM(newX, newY, gestureState.current.currentScale);
+      const newX = touch.clientX - gs.startPan.x;
+      const newY = touch.clientY - gs.startPan.y;
+      
+      // Track velocity
+      gs.velocityHistory.push({ x: touch.clientX, y: touch.clientY, time: Date.now() });
+      if (gs.velocityHistory.length > VELOCITY_HISTORY_SIZE) {
+        gs.velocityHistory.shift();
+      }
+      
+      gs.currentTranslate = { x: newX, y: newY };
+      applyTransformToDOM(newX, newY, gs.currentScale);
     }
   };
 
@@ -474,17 +514,24 @@ const TreeTab = () => {
       }
     } else if (gestureState.current.isPanning) {
       if (e.touches.length === 0) {
-        gestureState.current.isPanning = false;
+        const gs = gestureState.current;
+        gs.isPanning = false;
         
-        // Calculate velocity for inertia
-        const velocity = calculateVelocity();
-        const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
-        
-        if (speed > MIN_VELOCITY) {
-          runInertia();
+        // If we dragged, apply inertia
+        if (gs.wasDragging) {
+          const velocity = calculateVelocity();
+          const speed = Math.sqrt(velocity.x * velocity.x + velocity.y * velocity.y);
+          
+          if (speed > MIN_VELOCITY) {
+            runInertia();
+          } else {
+            setIsPanning(false);
+            setTranslate({ ...gs.currentTranslate });
+          }
         } else {
+          // It was a tap - just cleanup, native click will fire
           setIsPanning(false);
-          setTranslate({ ...gestureState.current.currentTranslate });
+          setTranslate({ ...gs.currentTranslate });
         }
       }
     }
