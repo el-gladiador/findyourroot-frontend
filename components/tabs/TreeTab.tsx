@@ -462,9 +462,6 @@ const TreeTab = () => {
         if (e.touches.length === 1) {
           const touch = e.touches[0];
           gestureState.current.isPanning = true;
-          gestureState.current.hasMoved = false;
-          gestureState.current.isOnNode = false;
-          gestureState.current.startPosition = { x: touch.clientX, y: touch.clientY };
           gestureState.current.velocityHistory = [{ x: touch.clientX, y: touch.clientY, time: Date.now() }];
           gestureState.current.startPan = {
             x: touch.clientX - gestureState.current.currentTranslate.x,
