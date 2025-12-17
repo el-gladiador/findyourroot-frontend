@@ -26,7 +26,6 @@ export default function App() {
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
   const validateAuth = useAppStore((state) => state.validateAuth);
   const settings = useAppStore((state) => state.settings);
-  const updateSettings = useAppStore((state) => state.updateSettings);
   
   // Enable real-time sync (Firestore listeners or polling)
   useRealtimeSync();
@@ -69,13 +68,8 @@ export default function App() {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isAuthenticated, validateAuth]);
 
-  // Initialize theme from localStorage on mount
+  // Initialize app on mount
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
-    if (savedTheme) {
-      updateSettings({ theme: savedTheme });
-    }
-
     // Register service worker
     if ('serviceWorker' in navigator) {
       navigator.serviceWorker.register('/sw.js').catch(console.error);
@@ -87,28 +81,22 @@ export default function App() {
     }, 2000);
 
     return () => clearTimeout(timer);
-  }, [updateSettings]);
+  }, []);
 
-  // Apply theme to document when settings change
+  // Listen for system theme changes when in system mode
   useEffect(() => {
-    const applyTheme = () => {
-      if (settings.theme === 'system') {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.classList.toggle('dark', prefersDark);
-      } else {
-        document.documentElement.classList.toggle('dark', settings.theme === 'dark');
-      }
+    if (settings.theme !== 'system') return;
+    
+    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+    const handler = (e: MediaQueryListEvent) => {
+      document.documentElement.classList.toggle('dark', e.matches);
     };
     
-    applyTheme();
+    // Apply current system preference
+    document.documentElement.classList.toggle('dark', mediaQuery.matches);
     
-    // Listen for system theme changes when in system mode
-    if (settings.theme === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handler = () => applyTheme();
-      mediaQuery.addEventListener('change', handler);
-      return () => mediaQuery.removeEventListener('change', handler);
-    }
+    mediaQuery.addEventListener('change', handler);
+    return () => mediaQuery.removeEventListener('change', handler);
   }, [settings.theme]);
 
   // Keyboard shortcuts

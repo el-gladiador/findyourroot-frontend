@@ -25,33 +25,8 @@ const SettingsTab = () => {
   const settings = useAppStore((state) => state.settings);
   const updateSettings = useAppStore((state) => state.updateSettings);
 
-  // Apply theme to document
-  useEffect(() => {
-    const applyTheme = (theme: 'light' | 'dark' | 'system') => {
-      if (theme === 'system') {
-        const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.classList.toggle('dark', prefersDark);
-      } else {
-        document.documentElement.classList.toggle('dark', theme === 'dark');
-      }
-    };
-    
-    applyTheme(settings.theme);
-    
-    // Listen for system theme changes when in system mode
-    if (settings.theme === 'system') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-      const handler = (e: MediaQueryListEvent) => {
-        document.documentElement.classList.toggle('dark', e.matches);
-      };
-      mediaQuery.addEventListener('change', handler);
-      return () => mediaQuery.removeEventListener('change', handler);
-    }
-  }, [settings.theme]);
-
   const handleThemeChange = (theme: 'light' | 'dark' | 'system') => {
     updateSettings({ theme });
-    localStorage.setItem('theme', theme);
   };
 
   // Load settings from localStorage

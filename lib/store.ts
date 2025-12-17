@@ -23,7 +23,7 @@ interface AppState {
     animationsEnabled: boolean;
     language: string;
   };
-  updateSettings: (settings: Partial<AppState['settings']>) => void;
+  updateSettings: (newSettings: Partial<AppState['settings']>) => void;
   
   // Family data state
   familyData: Person[];
@@ -34,6 +34,18 @@ interface AppState {
   updatePerson: (id: string, updates: Partial<Person>) => Promise<boolean>;
   clearTree: () => Promise<boolean>;
 }
+
+// Helper to apply theme to document
+const applyThemeToDOM = (theme: 'light' | 'dark' | 'system') => {
+  if (typeof window === 'undefined') return;
+  
+  if (theme === 'system') {
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+    document.documentElement.classList.toggle('dark', prefersDark);
+  } else {
+    document.documentElement.classList.toggle('dark', theme === 'dark');
+  }
+};
 
 export const useAppStore = create<AppState>()(
   persist(
@@ -140,10 +152,16 @@ export const useAppStore = create<AppState>()(
         animationsEnabled: true,
         language: 'en',
       },
-      updateSettings: (newSettings) =>
+      updateSettings: (newSettings) => {
+        // If theme is being updated, apply it immediately to DOM
+        if (newSettings.theme) {
+          applyThemeToDOM(newSettings.theme);
+          localStorage.setItem('theme', newSettings.theme);
+        }
         set((state) => ({
           settings: { ...state.settings, ...newSettings },
-        })),
+        }));
+      },
       
       // Family data state
       familyData: [],
@@ -233,6 +251,12 @@ export const useAppStore = create<AppState>()(
         settings: state.settings,
         token: state.token,
       }),
+      onRehydrateStorage: () => (state) => {
+        // Apply theme after store rehydrates from localStorage
+        if (state?.settings?.theme) {
+          applyThemeToDOM(state.settings.theme);
+        }
+      },
     }
   )
 );
