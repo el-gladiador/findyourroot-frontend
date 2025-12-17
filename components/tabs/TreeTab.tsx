@@ -58,7 +58,23 @@ const TreeTab = () => {
     pinchStartScale: 1,
     pinchStartMidpoint: { x: 0, y: 0 },
     pinchStartTranslate: { x: 0, y: 0 },
+    // Velocity tracking for inertia
+    velocity: { x: 0, y: 0 },
+    lastPosition: { x: 0, y: 0 },
+    lastTime: 0,
+    // Animation frame for inertia
+    inertiaRafId: null as number | null,
   });
+  
+  // Physics constants
+  const ZOOM_MIN = 0.3;
+  const ZOOM_MAX = 1.5;
+  const ZOOM_ELASTIC_MIN = 0.2;  // Allow over-zoom down to this
+  const ZOOM_ELASTIC_MAX = 2.0;  // Allow over-zoom up to this
+  const FRICTION = 0.92;         // Velocity decay per frame (lower = more friction)
+  const MIN_VELOCITY = 0.5;      // Stop animation below this velocity
+  const VELOCITY_SCALE = 0.3;    // Scale factor for initial velocity
+  const SPRING_STIFFNESS = 0.15; // How fast zoom snaps back
   
   // Keep refs in sync with state
   useEffect(() => {
@@ -146,11 +162,11 @@ const TreeTab = () => {
 
   // Zoom handlers
   const handleZoomIn = () => {
-    setScale(prevScale => Math.min(prevScale + 0.1, 2.0));
+    setScale(prevScale => Math.min(prevScale + 0.1, ZOOM_MAX));
   };
 
   const handleZoomOut = () => {
-    setScale(prevScale => Math.max(prevScale - 0.1, 0.3));
+    setScale(prevScale => Math.max(prevScale - 0.1, ZOOM_MIN));
   };
 
   const handleResetZoom = () => {
@@ -171,7 +187,7 @@ const TreeTab = () => {
     // Calculate scale to fit with some padding (80% of viewport)
     const scaleX = (viewportRect.width * 0.8) / contentWidth;
     const scaleY = (viewportRect.height * 0.8) / contentHeight;
-    const optimalScale = Math.min(Math.max(Math.min(scaleX, scaleY), 0.3), 2.0);
+    const optimalScale = Math.min(Math.max(Math.min(scaleX, scaleY), ZOOM_MIN), ZOOM_MAX);
     
     setScale(optimalScale);
     setTranslate({ x: 0, y: 0 });
@@ -214,7 +230,7 @@ const TreeTab = () => {
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = -e.deltaY / 500;
-    const newScale = Math.min(Math.max(scale + delta, 0.3), 2.0);
+    const newScale = Math.min(Math.max(scale + delta, ZOOM_MIN), ZOOM_MAX);
     setScale(newScale);
   };
 
@@ -225,11 +241,84 @@ const TreeTab = () => {
     }
   }, []);
 
-  // Pan handlers - Optimized for performance
+  // Stop any running inertia animation
+  const stopInertia = useCallback(() => {
+    if (gestureState.current.inertiaRafId !== null) {
+      cancelAnimationFrame(gestureState.current.inertiaRafId);
+      gestureState.current.inertiaRafId = null;
+    }
+  }, []);
+
+  // Run inertia animation after releasing pan
+  const runInertia = useCallback(() => {
+    const animate = () => {
+      const gs = gestureState.current;
+      
+      // Apply friction
+      gs.velocity.x *= FRICTION;
+      gs.velocity.y *= FRICTION;
+      
+      // Check if we should stop
+      const speed = Math.sqrt(gs.velocity.x * gs.velocity.x + gs.velocity.y * gs.velocity.y);
+      if (speed < MIN_VELOCITY) {
+        gs.inertiaRafId = null;
+        setTranslate({ ...gs.currentTranslate });
+        setIsPanning(false);
+        return;
+      }
+      
+      // Update position
+      gs.currentTranslate.x += gs.velocity.x;
+      gs.currentTranslate.y += gs.velocity.y;
+      
+      // Apply to DOM
+      applyTransformToDOM(gs.currentTranslate.x, gs.currentTranslate.y, gs.currentScale);
+      
+      // Continue animation
+      gs.inertiaRafId = requestAnimationFrame(animate);
+    };
+    
+    gestureState.current.inertiaRafId = requestAnimationFrame(animate);
+  }, [applyTransformToDOM]);
+
+  // Animate zoom snap-back when out of bounds
+  const animateZoomSnapBack = useCallback(() => {
+    const gs = gestureState.current;
+    const targetScale = Math.min(Math.max(gs.currentScale, ZOOM_MIN), ZOOM_MAX);
+    
+    if (Math.abs(gs.currentScale - targetScale) < 0.001) {
+      setScale(targetScale);
+      gs.currentScale = targetScale;
+      return;
+    }
+    
+    const animate = () => {
+      const diff = targetScale - gs.currentScale;
+      gs.currentScale += diff * SPRING_STIFFNESS;
+      
+      applyTransformToDOM(gs.currentTranslate.x, gs.currentTranslate.y, gs.currentScale);
+      
+      if (Math.abs(targetScale - gs.currentScale) < 0.001) {
+        gs.currentScale = targetScale;
+        setScale(targetScale);
+        applyTransformToDOM(gs.currentTranslate.x, gs.currentTranslate.y, targetScale);
+      } else {
+        requestAnimationFrame(animate);
+      }
+    };
+    
+    requestAnimationFrame(animate);
+  }, [applyTransformToDOM]);
+
+  // Pan handlers - Optimized for performance with velocity tracking
   const handleMouseDown = (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest('.tree-node-clickable')) return;
     
+    stopInertia();
     gestureState.current.isPanning = true;
+    gestureState.current.velocity = { x: 0, y: 0 };
+    gestureState.current.lastPosition = { x: e.clientX, y: e.clientY };
+    gestureState.current.lastTime = Date.now();
     gestureState.current.startPan = { 
       x: e.clientX - gestureState.current.currentTranslate.x, 
       y: e.clientY - gestureState.current.currentTranslate.y 
@@ -240,9 +329,23 @@ const TreeTab = () => {
   const handleMouseMove = (e: React.MouseEvent) => {
     if (!gestureState.current.isPanning) return;
     
+    const now = Date.now();
+    const dt = now - gestureState.current.lastTime;
+    
     const newX = e.clientX - gestureState.current.startPan.x;
     const newY = e.clientY - gestureState.current.startPan.y;
     
+    // Track velocity (pixels per frame at ~60fps)
+    if (dt > 0) {
+      const vx = (e.clientX - gestureState.current.lastPosition.x) * VELOCITY_SCALE;
+      const vy = (e.clientY - gestureState.current.lastPosition.y) * VELOCITY_SCALE;
+      // Smooth velocity with previous value
+      gestureState.current.velocity.x = gestureState.current.velocity.x * 0.5 + vx * 0.5;
+      gestureState.current.velocity.y = gestureState.current.velocity.y * 0.5 + vy * 0.5;
+    }
+    
+    gestureState.current.lastPosition = { x: e.clientX, y: e.clientY };
+    gestureState.current.lastTime = now;
     gestureState.current.currentTranslate = { x: newX, y: newY };
     
     // Direct DOM manipulation - no React state update during drag
@@ -252,9 +355,20 @@ const TreeTab = () => {
   const handleMouseUp = () => {
     if (gestureState.current.isPanning) {
       gestureState.current.isPanning = false;
-      setIsPanning(false);
-      // Sync React state with final position
-      setTranslate({ ...gestureState.current.currentTranslate });
+      
+      // Check if we have significant velocity for inertia
+      const speed = Math.sqrt(
+        gestureState.current.velocity.x * gestureState.current.velocity.x + 
+        gestureState.current.velocity.y * gestureState.current.velocity.y
+      );
+      
+      if (speed > MIN_VELOCITY) {
+        // Start inertia animation
+        runInertia();
+      } else {
+        setIsPanning(false);
+        setTranslate({ ...gestureState.current.currentTranslate });
+      }
     }
   };
 
@@ -275,6 +389,7 @@ const TreeTab = () => {
     if (e.touches.length === 2) {
       // Pinch zoom start - initialize pinch state
       e.preventDefault();
+      stopInertia();
       const touch1 = e.touches[0];
       const touch2 = e.touches[1];
       
@@ -288,9 +403,13 @@ const TreeTab = () => {
     } else if (e.touches.length === 1 && !gestureState.current.isPinching) {
       // Single finger pan
       if ((e.target as HTMLElement).closest('.tree-node-clickable')) return;
+      stopInertia();
       const touch = e.touches[0];
       
       gestureState.current.isPanning = true;
+      gestureState.current.velocity = { x: 0, y: 0 };
+      gestureState.current.lastPosition = { x: touch.clientX, y: touch.clientY };
+      gestureState.current.lastTime = Date.now();
       gestureState.current.startPan = { 
         x: touch.clientX - gestureState.current.currentTranslate.x, 
         y: touch.clientY - gestureState.current.currentTranslate.y 
@@ -301,7 +420,7 @@ const TreeTab = () => {
 
   const handleTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 2 && gestureState.current.isPinching) {
-      // Pinch zoom - calculate new scale and translate to keep content under fingers
+      // Pinch zoom - calculate new scale with elastic boundaries
       e.preventDefault();
       const touch1 = e.touches[0];
       const touch2 = e.touches[1];
@@ -309,9 +428,22 @@ const TreeTab = () => {
       const currentDistance = getTouchDistance(touch1, touch2);
       const currentMidpoint = getTouchMidpoint(touch1, touch2);
       
-      // Calculate new scale based on finger distance change
+      // Calculate raw scale ratio
       const scaleRatio = currentDistance / gestureState.current.pinchStartDistance;
-      const newScale = Math.min(Math.max(gestureState.current.pinchStartScale * scaleRatio, 0.3), 2.0);
+      let newScale = gestureState.current.pinchStartScale * scaleRatio;
+      
+      // Apply elastic resistance when exceeding boundaries
+      if (newScale < ZOOM_MIN) {
+        // Elastic resistance below minimum
+        const overZoom = ZOOM_MIN - newScale;
+        newScale = ZOOM_MIN - overZoom * 0.3; // Resist with 30% of over-zoom
+        newScale = Math.max(newScale, ZOOM_ELASTIC_MIN);
+      } else if (newScale > ZOOM_MAX) {
+        // Elastic resistance above maximum
+        const overZoom = newScale - ZOOM_MAX;
+        newScale = ZOOM_MAX + overZoom * 0.3; // Resist with 30% of over-zoom
+        newScale = Math.min(newScale, ZOOM_ELASTIC_MAX);
+      }
       
       // Get viewport center for transform origin calculation
       const viewportRect = viewportRef.current?.getBoundingClientRect();
@@ -327,11 +459,8 @@ const TreeTab = () => {
       const currentMidRelY = currentMidpoint.y - viewportRect.top - viewportCenterY;
       
       // Calculate how much the content under the starting midpoint should move
-      // to stay under the current midpoint after scaling
       const scaleDiff = newScale / gestureState.current.pinchStartScale;
       
-      // The point under the starting midpoint needs to scale and then be offset
-      // to appear under the current midpoint
       const newX = gestureState.current.pinchStartTranslate.x - startMidRelX * (scaleDiff - 1) + (currentMidRelX - startMidRelX);
       const newY = gestureState.current.pinchStartTranslate.y - startMidRelY * (scaleDiff - 1) + (currentMidRelY - startMidRelY);
       
@@ -341,11 +470,24 @@ const TreeTab = () => {
       // Direct DOM manipulation for smooth animation
       applyTransformToDOM(newX, newY, newScale);
     } else if (e.touches.length === 1 && gestureState.current.isPanning && !gestureState.current.isPinching) {
-      // Single finger pan
+      // Single finger pan with velocity tracking
       const touch = e.touches[0];
+      const now = Date.now();
+      const dt = now - gestureState.current.lastTime;
+      
       const newX = touch.clientX - gestureState.current.startPan.x;
       const newY = touch.clientY - gestureState.current.startPan.y;
       
+      // Track velocity
+      if (dt > 0) {
+        const vx = (touch.clientX - gestureState.current.lastPosition.x) * VELOCITY_SCALE;
+        const vy = (touch.clientY - gestureState.current.lastPosition.y) * VELOCITY_SCALE;
+        gestureState.current.velocity.x = gestureState.current.velocity.x * 0.5 + vx * 0.5;
+        gestureState.current.velocity.y = gestureState.current.velocity.y * 0.5 + vy * 0.5;
+      }
+      
+      gestureState.current.lastPosition = { x: touch.clientX, y: touch.clientY };
+      gestureState.current.lastTime = now;
       gestureState.current.currentTranslate = { x: newX, y: newY };
       
       // Direct DOM manipulation - no React state update during drag
@@ -356,15 +498,28 @@ const TreeTab = () => {
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (gestureState.current.isPinching) {
       if (e.touches.length < 2) {
-        // Pinch ended - sync state and potentially continue with pan
+        // Pinch ended - check if we need to snap back zoom
         gestureState.current.isPinching = false;
-        setScale(gestureState.current.currentScale);
+        
+        const currentScale = gestureState.current.currentScale;
+        const needsSnapBack = currentScale < ZOOM_MIN || currentScale > ZOOM_MAX;
+        
+        if (needsSnapBack) {
+          // Animate snap-back to valid zoom range
+          animateZoomSnapBack();
+        } else {
+          setScale(currentScale);
+        }
+        
         setTranslate({ ...gestureState.current.currentTranslate });
         
         // If one finger remains, start panning from that position
         if (e.touches.length === 1) {
           const touch = e.touches[0];
           gestureState.current.isPanning = true;
+          gestureState.current.velocity = { x: 0, y: 0 };
+          gestureState.current.lastPosition = { x: touch.clientX, y: touch.clientY };
+          gestureState.current.lastTime = Date.now();
           gestureState.current.startPan = {
             x: touch.clientX - gestureState.current.currentTranslate.x,
             y: touch.clientY - gestureState.current.currentTranslate.y
@@ -377,9 +532,20 @@ const TreeTab = () => {
     } else if (gestureState.current.isPanning) {
       if (e.touches.length === 0) {
         gestureState.current.isPanning = false;
-        setIsPanning(false);
-        // Sync React state with final position
-        setTranslate({ ...gestureState.current.currentTranslate });
+        
+        // Check if we have significant velocity for inertia
+        const speed = Math.sqrt(
+          gestureState.current.velocity.x * gestureState.current.velocity.x + 
+          gestureState.current.velocity.y * gestureState.current.velocity.y
+        );
+        
+        if (speed > MIN_VELOCITY) {
+          // Start inertia animation
+          runInertia();
+        } else {
+          setIsPanning(false);
+          setTranslate({ ...gestureState.current.currentTranslate });
+        }
       }
     }
   };
