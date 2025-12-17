@@ -184,6 +184,7 @@ export default function App() {
           title={getTitle()} 
           isDarkMode={isDarkMode}
           toggleTheme={toggleTheme}
+          showSearch={activeTab === 'home'}
         />
 
         {/* Main Content Area */}
