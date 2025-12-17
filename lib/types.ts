@@ -14,6 +14,7 @@ export interface Person {
   created_by?: string; // User ID of creator
   linked_user_id?: string; // User ID if someone claimed this identity
   instagram_username?: string; // Instagram handle (only shown if linked_user_id is set)
+  instagram_avatar_url?: string; // Cached Instagram profile picture URL
 }
 
 export interface User {

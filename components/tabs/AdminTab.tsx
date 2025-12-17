@@ -71,6 +71,17 @@ const AdminTab = () => {
   const [linkInstagram, setLinkInstagram] = useState('');
   const [isLinking, setIsLinking] = useState(false);
   
+  // Instagram lookup state
+  const [instagramProfile, setInstagramProfile] = useState<{
+    username: string;
+    full_name: string;
+    avatar_url: string;
+    bio: string;
+    is_verified: boolean;
+  } | null>(null);
+  const [isLookingUpInstagram, setIsLookingUpInstagram] = useState(false);
+  const [instagramError, setInstagramError] = useState<string | null>(null);
+  
   // Get family data for person selection
   const familyData = useAppStore((state) => state.familyData);
   
@@ -221,58 +232,6 @@ const AdminTab = () => {
     }
   };
 
-  // Role selection modal
-  const RoleModal = () => {
-    if (!showRoleModal || !selectedUser) return null;
-
-    const roles: UserRole[] = ['viewer', 'contributor', 'editor', 'co-admin', 'admin'];
-
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md p-6">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-            Change Role for {selectedUser.email}
-          </h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-            Current role: <span className={`px-2 py-0.5 rounded-full text-xs ${getRoleBadgeColor(selectedUser.role)}`}>{getRoleLabel(selectedUser.role)}</span>
-          </p>
-          
-          <div className="space-y-2 mb-6">
-            {roles.map((role) => (
-              <button
-                key={role}
-                onClick={() => handleUpdateUserRole(selectedUser.id, role)}
-                disabled={role === selectedUser.role}
-                className={`w-full p-3 rounded-lg text-left transition-colors ${
-                  role === selectedUser.role
-                    ? 'bg-slate-100 dark:bg-slate-700 opacity-50 cursor-not-allowed'
-                    : 'bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700'
-                }`}
-              >
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium text-slate-900 dark:text-white">{getRoleLabel(role)}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{getRoleDescription(role)}</p>
-                  </div>
-                  {role === selectedUser.role && (
-                    <span className="text-xs text-slate-400">Current</span>
-                  )}
-                </div>
-              </button>
-            ))}
-          </div>
-
-          <button
-            onClick={() => { setShowRoleModal(false); setSelectedUser(null); }}
-            className="w-full py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    );
-  };
-
   // Handle linking user to tree node
   const handleLinkUserToPerson = async (personId: string) => {
     if (!linkUserId) return;
@@ -287,6 +246,27 @@ const AdminTab = () => {
       setLinkUserId(null);
       setLinkPersonSearch('');
       setLinkInstagram('');
+      setInstagramProfile(null);
+      setInstagramError(null);
+    }
+  };
+
+  // Handle Instagram lookup
+  const handleInstagramLookup = async () => {
+    if (!linkInstagram.trim()) return;
+    
+    setIsLookingUpInstagram(true);
+    setInstagramError(null);
+    setInstagramProfile(null);
+    
+    const response = await ApiClient.lookupInstagramProfile(linkInstagram.trim());
+    
+    setIsLookingUpInstagram(false);
+    
+    if (response.error) {
+      setInstagramError(response.error);
+    } else if (response.data) {
+      setInstagramProfile(response.data);
     }
   };
 
@@ -295,106 +275,11 @@ const AdminTab = () => {
     (p) => !p.linked_user_id && p.name.toLowerCase().includes(linkPersonSearch.toLowerCase())
   );
 
-  // Link user to person modal
-  const LinkModal = () => {
-    if (!showLinkModal || !linkUserId) return null;
-    
-    const targetUser = users.find(u => u.id === linkUserId);
-    if (!targetUser) return null;
+  // Get target user for link modal
+  const linkTargetUser = linkUserId ? users.find(u => u.id === linkUserId) : null;
 
-    return (
-      <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-        <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md p-6 max-h-[80vh] overflow-y-auto">
-          <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-            Link User to Tree Node
-          </h3>
-          <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-            Linking <span className="font-medium text-slate-700 dark:text-slate-300">{targetUser.email}</span> to a family tree member
-          </p>
-          
-          {/* Instagram Input */}
-          <div className="mb-4">
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              <Instagram size={16} className="text-pink-500" />
-              Instagram Username (optional)
-            </label>
-            <input
-              type="text"
-              value={linkInstagram}
-              onChange={(e) => setLinkInstagram(e.target.value.replace('@', ''))}
-              placeholder="username (without @)"
-              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white"
-            />
-          </div>
-          
-          {/* Search persons */}
-          <div className="mb-4">
-            <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-              <Search size={16} />
-              Search Tree Node
-            </label>
-            <input
-              type="text"
-              value={linkPersonSearch}
-              onChange={(e) => setLinkPersonSearch(e.target.value)}
-              placeholder="Search by name..."
-              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white"
-            />
-          </div>
-          
-          {/* Available persons */}
-          <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
-            {unlinkedPersons.length === 0 ? (
-              <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">
-                No unlinked persons found
-              </p>
-            ) : (
-              unlinkedPersons.slice(0, 10).map((person) => (
-                <button
-                  key={person.id}
-                  onClick={() => handleLinkUserToPerson(person.id)}
-                  disabled={isLinking}
-                  className="w-full p-3 rounded-lg text-left bg-slate-50 dark:bg-slate-700/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors disabled:opacity-50 flex items-center gap-3"
-                >
-                  <img
-                    src={person.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=6366f1&color=fff&size=40`}
-                    alt={person.name}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
-                  <div>
-                    <p className="font-medium text-slate-900 dark:text-white">{person.name}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">{person.role}</p>
-                  </div>
-                  {isLinking && (
-                    <div className="ml-auto">
-                      <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
-                    </div>
-                  )}
-                </button>
-              ))
-            )}
-            {unlinkedPersons.length > 10 && (
-              <p className="text-xs text-slate-500 text-center py-2">
-                +{unlinkedPersons.length - 10} more results. Refine your search.
-              </p>
-            )}
-          </div>
-
-          <button
-            onClick={() => { 
-              setShowLinkModal(false); 
-              setLinkUserId(null); 
-              setLinkPersonSearch('');
-              setLinkInstagram('');
-            }}
-            className="w-full py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    );
-  };
+  // Roles list for role modal
+  const rolesList: UserRole[] = ['viewer', 'contributor', 'editor', 'co-admin', 'admin'];
 
   return (
     <div className="pb-24 pt-6 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -859,78 +744,80 @@ const AdminTab = () => {
                   key={u.id}
                   className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 p-4"
                 >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white font-semibold">
-                        {u.email.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="font-medium text-slate-800 dark:text-white">{u.email}</p>
-                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                          <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(u.role)}`}>
-                            {getRoleLabel(u.role)}
+                  {/* User info row */}
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white font-semibold shrink-0">
+                      {u.email.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="font-medium text-slate-800 dark:text-white truncate">{u.email}</p>
+                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(u.role)}`}>
+                          {getRoleLabel(u.role)}
+                        </span>
+                        {u.is_verified && (
+                          <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-0.5">
+                            <CheckCircle size={10} /> Verified
                           </span>
-                          {u.is_verified && (
-                            <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-0.5">
-                              <CheckCircle size={10} /> Verified
-                            </span>
-                          )}
-                          {linkedPerson && (
-                            <span className="text-xs text-purple-600 dark:text-purple-400 flex items-center gap-0.5">
-                              <Link2 size={10} /> {linkedPerson.name}
-                            </span>
-                          )}
-                        </div>
+                        )}
+                        {linkedPerson && (
+                          <span className="text-xs text-purple-600 dark:text-purple-400 flex items-center gap-0.5 truncate max-w-[120px]">
+                            <Link2 size={10} className="shrink-0" /> <span className="truncate">{linkedPerson.name}</span>
+                          </span>
+                        )}
                       </div>
                     </div>
-                    
-                    {u.email !== user?.email && (
-                      <div className="flex items-center gap-1">
-                        {/* Link/Unlink button */}
-                        {!u.person_id ? (
-                          <button
-                            onClick={() => { setLinkUserId(u.id); setShowLinkModal(true); }}
-                            className="p-2 text-slate-500 hover:text-purple-600 dark:hover:text-purple-400 transition-colors"
-                            title="Link to tree node"
-                          >
-                            <Link2 size={18} />
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => {
-                              if (confirm(`Unlink ${u.email} from ${linkedPerson?.name || 'tree node'}?`)) {
-                                ApiClient.unlinkIdentity(u.id).then(() => fetchUsers());
-                              }
-                            }}
-                            className="p-2 text-purple-500 hover:text-purple-700 dark:hover:text-purple-300 transition-colors"
-                            title="Unlink from tree node"
-                          >
-                            <Link2 size={18} />
-                          </button>
-                        )}
-                        <button
-                          onClick={() => { setSelectedUser(u); setShowRoleModal(true); }}
-                          className="p-2 text-slate-500 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
-                          title="Change role"
-                        >
-                          <Edit3 size={18} />
-                        </button>
-                        {u.role !== 'viewer' && (
-                          <button
-                            onClick={() => handleRevokeAccess(u.id)}
-                            className="p-2 text-slate-500 hover:text-red-600 dark:hover:text-red-400 transition-colors"
-                            title="Revoke access"
-                          >
-                            <UserMinus size={18} />
-                          </button>
-                        )}
-                      </div>
-                    )}
-                    
-                    {u.email === user?.email && (
-                      <span className="text-xs text-slate-400 italic">You</span>
-                    )}
                   </div>
+                  
+                  {/* Actions row */}
+                  {u.email !== user?.email && (
+                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+                      {/* Link/Unlink button */}
+                      {!u.person_id ? (
+                        <button
+                          onClick={() => { setLinkUserId(u.id); setShowLinkModal(true); }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
+                        >
+                          <Link2 size={14} />
+                          Link
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            if (confirm(`Unlink ${u.email} from ${linkedPerson?.name || 'tree node'}?`)) {
+                              ApiClient.unlinkIdentity(u.id).then(() => fetchUsers());
+                            }
+                          }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200 dark:hover:bg-purple-900/40 rounded-lg transition-colors"
+                        >
+                          <Link2 size={14} />
+                          Unlink
+                        </button>
+                      )}
+                      <button
+                        onClick={() => { setSelectedUser(u); setShowRoleModal(true); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                      >
+                        <Edit3 size={14} />
+                        Role
+                      </button>
+                      {u.role !== 'viewer' && (
+                        <button
+                          onClick={() => handleRevokeAccess(u.id)}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                        >
+                          <UserMinus size={14} />
+                          Revoke
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  
+                  {u.email === user?.email && (
+                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
+                      <span className="text-xs text-slate-400 italic">This is you</span>
+                    </div>
+                  )}
                 </div>
               )})
             )}
@@ -938,8 +825,203 @@ const AdminTab = () => {
         </>
       )}
 
-      <RoleModal />
-      <LinkModal />
+      {/* Role Modal - Inline to prevent focus loss */}
+      {showRoleModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md p-6">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+              Change Role for {selectedUser.email}
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+              Current role: <span className={`px-2 py-0.5 rounded-full text-xs ${getRoleBadgeColor(selectedUser.role)}`}>{getRoleLabel(selectedUser.role)}</span>
+            </p>
+            
+            <div className="space-y-2 mb-6">
+              {rolesList.map((role) => (
+                <button
+                  key={role}
+                  onClick={() => handleUpdateUserRole(selectedUser.id, role)}
+                  disabled={role === selectedUser.role}
+                  className={`w-full p-3 rounded-lg text-left transition-colors ${
+                    role === selectedUser.role
+                      ? 'bg-slate-100 dark:bg-slate-700 opacity-50 cursor-not-allowed'
+                      : 'bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-medium text-slate-900 dark:text-white">{getRoleLabel(role)}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{getRoleDescription(role)}</p>
+                    </div>
+                    {role === selectedUser.role && (
+                      <span className="text-xs text-slate-400">Current</span>
+                    )}
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => { setShowRoleModal(false); setSelectedUser(null); }}
+              className="w-full py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Link Modal - Inline to prevent focus loss */}
+      {showLinkModal && linkTargetUser && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md p-6 max-h-[80vh] overflow-y-auto">
+            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
+              Link User to Tree Node
+            </h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
+              Linking <span className="font-medium text-slate-700 dark:text-slate-300">{linkTargetUser.email}</span> to a family tree member
+            </p>
+            
+            {/* Instagram Input with Lookup */}
+            <div className="mb-4">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                <Instagram size={16} className="text-pink-500" />
+                Instagram Username (optional)
+              </label>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={linkInstagram}
+                  onChange={(e) => {
+                    setLinkInstagram(e.target.value.replace('@', ''));
+                    setInstagramProfile(null);
+                    setInstagramError(null);
+                  }}
+                  placeholder="username (without @)"
+                  className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white"
+                />
+                <button
+                  onClick={handleInstagramLookup}
+                  disabled={!linkInstagram.trim() || isLookingUpInstagram}
+                  className="px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                >
+                  {isLookingUpInstagram ? (
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  ) : (
+                    <Search size={16} />
+                  )}
+                  Lookup
+                </button>
+              </div>
+              
+              {/* Instagram Profile Preview */}
+              {instagramProfile && (
+                <div className="mt-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-pink-200 dark:border-pink-800">
+                  <div className="flex items-center gap-3">
+                    <img
+                      src={instagramProfile.avatar_url}
+                      alt={instagramProfile.username}
+                      className="w-12 h-12 rounded-full object-cover border-2 border-pink-300 dark:border-pink-600"
+                    />
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="font-semibold text-slate-900 dark:text-white truncate">
+                          {instagramProfile.full_name || instagramProfile.username}
+                        </p>
+                        {instagramProfile.is_verified && (
+                          <CheckCircle size={14} className="text-blue-500 shrink-0" />
+                        )}
+                      </div>
+                      <p className="text-xs text-pink-600 dark:text-pink-400">@{instagramProfile.username}</p>
+                      {instagramProfile.bio && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">{instagramProfile.bio}</p>
+                      )}
+                    </div>
+                  </div>
+                  <p className="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1">
+                    <CheckCircle size={12} />
+                    Profile found! Their photo will be used as avatar.
+                  </p>
+                </div>
+              )}
+              
+              {/* Instagram Error */}
+              {instagramError && (
+                <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+                  <p className="text-xs text-red-600 dark:text-red-400">{instagramError}</p>
+                </div>
+              )}
+            </div>
+            
+            {/* Search persons */}
+            <div className="mb-4">
+              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                <Search size={16} />
+                Search Tree Node
+              </label>
+              <input
+                type="text"
+                value={linkPersonSearch}
+                onChange={(e) => setLinkPersonSearch(e.target.value)}
+                placeholder="Search by name..."
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white"
+              />
+            </div>
+            
+            {/* Available persons */}
+            <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
+              {unlinkedPersons.length === 0 ? (
+                <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">
+                  No unlinked persons found
+                </p>
+              ) : (
+                unlinkedPersons.slice(0, 10).map((person) => (
+                  <button
+                    key={person.id}
+                    onClick={() => handleLinkUserToPerson(person.id)}
+                    disabled={isLinking}
+                    className="w-full p-3 rounded-lg text-left bg-slate-50 dark:bg-slate-700/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors disabled:opacity-50 flex items-center gap-3"
+                  >
+                    <img
+                      src={person.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=6366f1&color=fff&size=40`}
+                      alt={person.name}
+                      className="w-10 h-10 rounded-full object-cover"
+                    />
+                    <div>
+                      <p className="font-medium text-slate-900 dark:text-white">{person.name}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">{person.role}</p>
+                    </div>
+                    {isLinking && (
+                      <div className="ml-auto">
+                        <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                      </div>
+                    )}
+                  </button>
+                ))
+              )}
+              {unlinkedPersons.length > 10 && (
+                <p className="text-xs text-slate-500 text-center py-2">
+                  +{unlinkedPersons.length - 10} more results. Refine your search.
+                </p>
+              )}
+            </div>
+
+            <button
+              onClick={() => { 
+                setShowLinkModal(false); 
+                setLinkUserId(null); 
+                setLinkPersonSearch('');
+                setLinkInstagram('');
+                setInstagramProfile(null);
+                setInstagramError(null);
+              }}
+              className="w-full py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

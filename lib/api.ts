@@ -453,4 +453,17 @@ export class ApiClient {
       body: JSON.stringify({ instagram_username: instagramUsername }),
     });
   }
+
+  // Lookup Instagram profile - admin only
+  static async lookupInstagramProfile(username: string): Promise<ApiResponse<{
+    username: string;
+    full_name: string;
+    avatar_url: string;
+    bio: string;
+    is_verified: boolean;
+  }>> {
+    return this.request(`/api/v1/admin/instagram/lookup?username=${encodeURIComponent(username)}`, {
+      method: 'GET',
+    });
+  }
 }

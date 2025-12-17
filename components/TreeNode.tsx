@@ -71,11 +71,15 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
           }}
           className={`relative w-full h-full border-2 ${isSpouse ? 'border-rose-400' : 'border-indigo-500'} bg-white dark:bg-slate-800 overflow-hidden shadow-lg`}
         >
-          {/* Avatar Image inside the morphing container */}
+          {/* Avatar Image inside the morphing container - Use Instagram avatar if available */}
           <motion.img 
             layoutId={`avatar-img-${person.id}`}
             transition={layoutTransition}
-            src={person.avatar} 
+            src={
+              (person.linked_user_id && person.instagram_avatar_url) 
+                ? person.instagram_avatar_url 
+                : person.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=6366f1&color=fff&size=80`
+            } 
             alt={person.name} 
             className="w-full h-full object-cover"
           />

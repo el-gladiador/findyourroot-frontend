@@ -119,7 +119,12 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
                   <motion.img
                     layoutId={`avatar-img-${person.id}`}
                     transition={layoutTransition}
-                    src={person.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=6366f1&color=fff&size=96`}
+                    src={
+                      // Use Instagram avatar if linked and has Instagram
+                      (person.linked_user_id && person.instagram_avatar_url) 
+                        ? person.instagram_avatar_url 
+                        : person.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=6366f1&color=fff&size=96`
+                    }
                     alt={person.name}
                     className="w-full h-full object-cover"
                   />
