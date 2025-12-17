@@ -112,6 +112,7 @@ export const useRealtimeAdminSync = (
   const user = useAppStore((state) => state.user);
   const [data, setData] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isConnected, setIsConnected] = useState(false); // Track if real-time is active
   const [newItemCount, setNewItemCount] = useState(0);
   const unsubscribeRef = useRef<Unsubscribe | null>(null);
   const previousCountRef = useRef<number>(0);
@@ -123,6 +124,7 @@ export const useRealtimeAdminSync = (
     if (!isAuthenticated || !canViewAdminData) {
       setData([]);
       setIsLoading(false);
+      setIsConnected(false);
       return;
     }
 
@@ -171,12 +173,15 @@ export const useRealtimeAdminSync = (
               }
               previousCountRef.current = items.length;
               
+              console.log(`[Admin Realtime] ${collectionName} updated:`, items.length, 'items');
               setData(items);
               setIsLoading(false);
+              setIsConnected(true); // Mark as connected once we get first snapshot
             },
             (error) => {
               console.error(`[Admin Realtime] Error listening to ${collectionName}:`, error);
               setIsLoading(false);
+              setIsConnected(false);
             }
           );
 
@@ -184,16 +189,19 @@ export const useRealtimeAdminSync = (
             if (unsubscribeRef.current) {
               console.log(`[Admin Realtime] Cleaning up ${collectionName} listener`);
               unsubscribeRef.current();
+              setIsConnected(false);
             }
           };
         } catch (error) {
           console.error(`[Admin Realtime] Failed to setup ${collectionName} listener:`, error);
           setIsLoading(false);
+          setIsConnected(false);
         }
       }
     }
 
     setIsLoading(false);
+    setIsConnected(false);
   }, [isAuthenticated, canViewAdminData, collectionName, statusFilter]);
 
   // Function to clear new item notification count
@@ -208,7 +216,7 @@ export const useRealtimeAdminSync = (
     }
   }, [canViewAdminData]);
 
-  return { data, isLoading, newItemCount, clearNewItemCount };
+  return { data, isLoading, isConnected, newItemCount, clearNewItemCount };
 };
 
 /**

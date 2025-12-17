@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Users, CheckCircle, XCircle, Clock, Mail, MessageSquare, 
   UserCheck, Link2, Shield, UserMinus,
-  Edit3, Trash2, Plus, Eye, RefreshCw, Bell
+  Edit3, Trash2, Plus, Eye, Bell
 } from 'lucide-react';
 import { ApiClient } from '@/lib/api';
 import { 
@@ -25,7 +25,6 @@ const AdminTab = () => {
   const canReviewSuggestions = user && canApprove(user.role);
 
   const [activeTab, setActiveTab] = useState<TabType>(canReviewSuggestions ? 'suggestions' : 'permissions');
-  const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
   
   // Filter states (defined before real-time hooks to avoid forward references)
   const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
@@ -55,34 +54,15 @@ const AdminTab = () => {
   // Get pending counts for badges
   const pendingCounts = useAdminPendingCounts();
   
-  // Permission requests state
-  const [requests, setRequests] = useState<PermissionRequest[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-
-  // Identity claims state
-  const [identityClaims, setIdentityClaims] = useState<IdentityClaimRequest[]>([]);
-  const [isLoadingClaims, setIsLoadingClaims] = useState(true);
+  // Notes for reviews
   const [reviewNotes, setReviewNotes] = useState<Record<string, string>>({});
-
-  // Suggestions state (fallback for non-realtime)
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
-  const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(true);
   const [suggestionNotes, setSuggestionNotes] = useState<Record<string, string>>({});
 
-  // Users state (admin only)
+  // Users state (admin only) - no realtime for users, uses polling
   const [users, setUsers] = useState<UserListItem[]>([]);
   const [isLoadingUsers, setIsLoadingUsers] = useState(true);
   const [selectedUser, setSelectedUser] = useState<UserListItem | null>(null);
   const [showRoleModal, setShowRoleModal] = useState(false);
-  
-  // Use realtime data if available, otherwise use fetched data
-  const displaySuggestions = realtimeSuggestions.length > 0 ? realtimeSuggestions : suggestions;
-  const displayRequests = realtimeRequests.length > 0 ? realtimeRequests as PermissionRequest[] : requests;
-  const displayClaims = realtimeClaims.length > 0 ? realtimeClaims as IdentityClaimRequest[] : identityClaims;
-  
-  const suggestionsLoading = isLoadingRealtimeSuggestions && isLoadingSuggestions;
-  const requestsLoading = isLoadingRealtimeRequests && isLoading;
-  const claimsLoading = isLoadingRealtimeClaims && isLoadingClaims;
   
   // Clear new suggestion count when viewing suggestions tab
   useEffect(() => {
@@ -91,40 +71,7 @@ const AdminTab = () => {
     }
   }, [activeTab, clearSuggestionCount]);
 
-  const fetchRequests = useCallback(async (showLoading = true) => {
-    if (showLoading) setIsLoading(true);
-    const response = await ApiClient.getPermissionRequests(filter);
-    if (response.data) {
-      setRequests(response.data);
-    }
-    if (showLoading) setIsLoading(false);
-    setLastRefresh(new Date());
-  }, [filter]);
-
-  const fetchIdentityClaims = useCallback(async (showLoading = true) => {
-    if (showLoading) setIsLoadingClaims(true);
-    const response = await ApiClient.getIdentityClaims(claimFilter);
-    if (response.data) {
-      setIdentityClaims(response.data);
-    } else {
-      setIdentityClaims([]);
-    }
-    if (showLoading) setIsLoadingClaims(false);
-    setLastRefresh(new Date());
-  }, [claimFilter]);
-
-  const fetchSuggestions = useCallback(async (showLoading = true) => {
-    if (showLoading) setIsLoadingSuggestions(true);
-    const response = await ApiClient.getAllSuggestions(suggestionFilter);
-    if (response.data) {
-      setSuggestions(response.data);
-    } else {
-      setSuggestions([]);
-    }
-    if (showLoading) setIsLoadingSuggestions(false);
-    setLastRefresh(new Date());
-  }, [suggestionFilter]);
-
+  // Fetch users (no realtime sync for users collection)
   const fetchUsers = useCallback(async (showLoading = true) => {
     if (showLoading) setIsLoadingUsers(true);
     const response = await ApiClient.getAllUsers();
@@ -134,51 +81,17 @@ const AdminTab = () => {
       setUsers([]);
     }
     if (showLoading) setIsLoadingUsers(false);
-    setLastRefresh(new Date());
   }, []);
 
-  // Manual refresh function
-  const handleManualRefresh = () => {
-    if (activeTab === 'permissions' && isAdmin) {
-      fetchRequests(true);
-    } else if (activeTab === 'identity' && isAdmin) {
-      fetchIdentityClaims(true);
-    } else if (activeTab === 'suggestions' && canReviewSuggestions) {
-      fetchSuggestions(true);
-    } else if (activeTab === 'users' && isAdmin) {
-      fetchUsers(true);
-    }
-  };
-
-  // Initial fetch when tab changes
-  useEffect(() => {
-    if (activeTab === 'permissions' && isAdmin) {
-      fetchRequests();
-    }
-  }, [filter, activeTab, isAdmin, fetchRequests]);
-
-  useEffect(() => {
-    if (activeTab === 'identity' && isAdmin) {
-      fetchIdentityClaims();
-    }
-  }, [claimFilter, activeTab, isAdmin, fetchIdentityClaims]);
-
-  useEffect(() => {
-    if (activeTab === 'suggestions' && canReviewSuggestions) {
-      fetchSuggestions();
-    }
-  }, [suggestionFilter, activeTab, canReviewSuggestions, fetchSuggestions]);
-
+  // Fetch users when users tab is active
   useEffect(() => {
     if (activeTab === 'users' && isAdmin) {
       fetchUsers();
     }
   }, [activeTab, isAdmin, fetchUsers]);
 
-  // Auto-refresh polling - only for users tab (no real-time sync) 
-  // Other tabs use Firestore real-time sync
+  // Auto-refresh polling for users tab only
   useEffect(() => {
-    // Only poll for users tab since it doesn't have real-time sync
     if (activeTab !== 'users' || !isAdmin) return;
     
     const interval = setInterval(() => {
@@ -361,14 +274,11 @@ const AdminTab = () => {
             {isAdmin ? 'Manage requests, users, and contributions' : 'Review and manage contributions'}
           </p>
         </div>
-        <button
-          onClick={handleManualRefresh}
-          className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm"
-          title={`Last updated: ${lastRefresh.toLocaleTimeString()}`}
-        >
-          <RefreshCw size={16} className={isLoading || isLoadingSuggestions || isLoadingClaims || isLoadingUsers ? 'animate-spin' : ''} />
-          <span className="hidden sm:inline">Refresh</span>
-        </button>
+        {/* Real-time indicator */}
+        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400 text-sm">
+          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+          <span className="hidden sm:inline">Live</span>
+        </div>
       </div>
 
       {/* Main Tab Selector */}
@@ -480,17 +390,17 @@ const AdminTab = () => {
           </div>
 
           <div className="space-y-4">
-            {suggestionsLoading || isLoadingSuggestions ? (
+            {isLoadingRealtimeSuggestions ? (
               <div className="flex justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
               </div>
-            ) : displaySuggestions.length === 0 ? (
+            ) : realtimeSuggestions.length === 0 ? (
               <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
                 <Edit3 size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
                 <p className="text-slate-600 dark:text-slate-400">No {suggestionFilter} suggestions</p>
               </div>
             ) : (
-              displaySuggestions.map((suggestion) => (
+              realtimeSuggestions.map((suggestion) => (
                 <div
                   key={suggestion.id}
                   className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4"
@@ -612,17 +522,17 @@ const AdminTab = () => {
           </div>
 
           <div className="space-y-4">
-            {requestsLoading || isLoading ? (
+            {isLoadingRealtimeRequests ? (
               <div className="flex justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
               </div>
-            ) : displayRequests.length === 0 ? (
+            ) : realtimeRequests.length === 0 ? (
               <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
                 <Users size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
                 <p className="text-slate-600 dark:text-slate-400">No {filter} requests</p>
               </div>
             ) : (
-              displayRequests.map((request) => (
+              (realtimeRequests as PermissionRequest[]).map((request) => (
                 <div
                   key={request.id}
                   className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4"
@@ -718,17 +628,17 @@ const AdminTab = () => {
           </div>
 
           <div className="space-y-4">
-            {claimsLoading || isLoadingClaims ? (
+            {isLoadingRealtimeClaims ? (
               <div className="flex justify-center py-12">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
               </div>
-            ) : displayClaims.length === 0 ? (
+            ) : realtimeClaims.length === 0 ? (
               <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
                 <UserCheck size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
                 <p className="text-slate-600 dark:text-slate-400">No {claimFilter} identity claims</p>
               </div>
             ) : (
-              displayClaims.map((claim) => (
+              (realtimeClaims as IdentityClaimRequest[]).map((claim) => (
                 <div
                   key={claim.id}
                   className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4"
