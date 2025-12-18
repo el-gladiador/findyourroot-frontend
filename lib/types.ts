@@ -29,7 +29,7 @@ export interface User {
   is_admin: boolean;
   tree_name?: string;
   is_verified?: boolean;
-  person_id?: string; // Linked tree node ID if user claimed identity
+  person_id?: string; // Derived from Person.linked_user_id (Person owns the link)
 }
 
 export interface UserListItem {
@@ -38,7 +38,8 @@ export interface UserListItem {
   role: UserRole;
   tree_name: string;
   is_verified: boolean;
-  person_id: string;
+  person_id: string;       // Derived from Person.linked_user_id (Person owns the link)
+  person_name?: string;    // Derived person name for display
   created_at: string;
 }
 
