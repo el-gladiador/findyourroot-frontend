@@ -10,6 +10,7 @@ interface LoginPageProps {
 export default function LoginPage({ onSuccess }: LoginPageProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [treeName, setTreeName] = useState('Batur');
   const [fatherName, setFatherName] = useState('');
   const [birthYear, setBirthYear] = useState('');
@@ -24,6 +25,19 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
     e.preventDefault();
     setError('');
     setSuccessMessage('');
+    
+    // Validate passwords match for registration
+    if (isRegistering && password !== confirmPassword) {
+      setError('Passwords do not match');
+      return;
+    }
+    
+    // Validate password length
+    if (isRegistering && password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+    
     setIsLoading(true);
 
     try {
@@ -114,14 +128,48 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
                 id="password"
                 name="password"
                 type="password"
-                autoComplete="current-password"
+                autoComplete={isRegistering ? "new-password" : "current-password"}
                 required
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="appearance-none relative block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 transition-colors"
-                placeholder="Enter your password"
+                placeholder={isRegistering ? "Create a password (min 6 characters)" : "Enter your password"}
               />
             </div>
+
+            {isRegistering && (
+              <div>
+                <label
+                  htmlFor="confirmPassword"
+                  className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
+                >
+                  Confirm Password
+                </label>
+                <input
+                  id="confirmPassword"
+                  name="confirmPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  required
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  className={`appearance-none relative block w-full px-4 py-3 border placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 transition-colors ${
+                    confirmPassword && password !== confirmPassword
+                      ? 'border-red-500 dark:border-red-500'
+                      : confirmPassword && password === confirmPassword
+                      ? 'border-green-500 dark:border-green-500'
+                      : 'border-gray-300 dark:border-gray-600'
+                  }`}
+                  placeholder="Re-enter your password"
+                />
+                {confirmPassword && password !== confirmPassword && (
+                  <p className="mt-1 text-xs text-red-500">Passwords do not match</p>
+                )}
+                {confirmPassword && password === confirmPassword && (
+                  <p className="mt-1 text-xs text-green-500">Passwords match ✓</p>
+                )}
+              </div>
+            )}
 
             {isRegistering && (
               <>
@@ -232,6 +280,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
               onClick={() => {
                 setIsRegistering(!isRegistering);
                 setError('');
+                setConfirmPassword('');
               }}
               className="w-full text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
             >
