@@ -237,10 +237,35 @@ export class ApiClient {
     });
   }
 
+  static async getGroupedSuggestions(status = 'pending'): Promise<ApiResponse<{
+    groups: any[];
+    total_count: number;
+    group_count: number;
+  }>> {
+    return this.request(`/api/v1/admin/suggestions/grouped?status=${status}`, {
+      method: 'GET',
+    });
+  }
+
   static async reviewSuggestion(id: string, approved: boolean, reviewNotes?: string): Promise<ApiResponse<any>> {
     return this.request(`/api/v1/admin/suggestions/${id}/review`, {
       method: 'POST',
       body: JSON.stringify({ approved, review_notes: reviewNotes }),
+    });
+  }
+
+  static async batchReviewSuggestions(suggestionIds: string[], approved: boolean, reviewNotes?: string): Promise<ApiResponse<{
+    message: string;
+    success_count: number;
+    fail_count: number;
+  }>> {
+    return this.request('/api/v1/admin/suggestions/batch-review', {
+      method: 'POST',
+      body: JSON.stringify({ 
+        suggestion_ids: suggestionIds, 
+        approved, 
+        review_notes: reviewNotes 
+      }),
     });
   }
 

@@ -7,7 +7,7 @@ const AboutTab = () => (
     <div className="flex flex-col items-center mb-8">
       <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 p-1 mb-4 shadow-xl shadow-indigo-500/30">
         <div className="w-full h-full rounded-full bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden">
-           <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Developer" alt="Creator" className="w-full h-full object-cover" />
+           <img src="/me.jpg" alt="Mohammad Amiri" className="w-full h-full object-cover" />
         </div>
       </div>
       <h2 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{CREATOR_INFO.name}</h2>
@@ -33,9 +33,9 @@ const AboutTab = () => (
     </div>
 
     <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-900/50">
-      <h3 className="font-bold text-lg text-indigo-900 dark:text-white mb-2">Why I built this?</h3>
-      <p className="text-indigo-800 dark:text-indigo-200 text-sm leading-relaxed">
-        "I believe that understanding our past helps us navigate our future. This app aims to bridge the gap between generations through simple, beautiful technology."
+      <h3 className="font-bold text-lg text-indigo-900 dark:text-white mb-2">چرا این اپ رو ساختم؟</h3>
+      <p className="text-indigo-800 dark:text-indigo-200 text-sm leading-relaxed" dir="rtl">
+        همیشه دوست داشتم یک نسخه دیجیتال از شجره‌نامه خانوادگیمون داشته باشیم که همه بتونن ببینن و بهش اضافه کنن. این اپ کمک می‌کنه خاطرات و داستان‌های نسل‌های گذشته رو حفظ کنیم و به نسل‌های آینده منتقل کنیم. امیدوارم لذت ببرید! 🌳
       </p>
     </div>
   </div>

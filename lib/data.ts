@@ -84,12 +84,12 @@ export const FAMILY_DATA: Person[] = [
 ];
 
 export const CREATOR_INFO: CreatorInfo = {
-  name: "Alex Dev",
-  role: "Full Stack Developer",
-  bio: "I built this application to help families stay connected and visualize their heritage in a modern, interactive way. Passionate about React, UI/UX, and genealogy.",
+  name: "Mohammad Amiri",
+  role: "Software Engineer & AI Researcher",
+  bio: "I always wanted to create a digital version of our family tree that everyone could access and contribute to. Growing up, I heard so many stories about our ancestors, but they were scattered across different people's memories. This app is my way of bringing all those stories together in one beautiful, interactive place that our whole family can enjoy and build upon together.",
   socials: {
-    twitter: "@alexdev",
-    github: "github.com/alexdev",
-    linkedin: "linkedin.com/in/alexdev"
+    twitter: "@mamiri",
+    github: "github.com/mamiri",
+    linkedin: "linkedin.com/in/mamiri"
   }
 };

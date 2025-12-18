@@ -96,6 +96,29 @@ export interface Suggestion {
   updated_at: string;
 }
 
+export interface GroupedSuggestion {
+  group_id: string;
+  type: SuggestionType;
+  target_person_id: string;
+  target_person?: Person;
+  person_data?: PersonData;
+  suggestion_ids: string[];
+  user_emails: string[];
+  count: number;
+  first_created_at: string;
+  last_created_at: string;
+  messages: string[];
+  has_conflicts: boolean;
+  conflicts_with: string[];
+  conflict_type?: string;
+}
+
+export interface GroupedSuggestionsResponse {
+  groups: GroupedSuggestion[];
+  total_count: number;
+  group_count: number;
+}
+
 export interface CreatorInfo {
   name: string;
   role: string;
