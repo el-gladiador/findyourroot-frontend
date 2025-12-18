@@ -296,6 +296,14 @@ export class ApiClient {
     });
   }
 
+  // Populate tree from indentation-based text (admin only)
+  static async populateTreeFromText(text: string): Promise<ApiResponse<{ created_count: number; people: any[] }>> {
+    return this.request('/api/v1/tree/populate', {
+      method: 'POST',
+      body: JSON.stringify({ text }),
+    });
+  }
+
   // Check for duplicate names using phonetic matching for Persian names
   static async checkDuplicateName(name: string, threshold: number = 0.8): Promise<ApiResponse<{
     has_duplicates: boolean;

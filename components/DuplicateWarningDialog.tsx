@@ -24,15 +24,15 @@ interface DuplicateWarningDialogProps {
 const getMatchTypeLabel = (matchType: string): string => {
   switch (matchType) {
     case 'exact':
-      return 'تطابق کامل';
+      return 'Exact Match';
     case 'normalized':
-      return 'نام مشابه';
+      return 'Similar Name';
     case 'similar':
-      return 'شباهت زیاد';
+      return 'High Similarity';
     case 'ai':
-      return 'تشخیص هوشمند';
+      return 'AI Detection';
     default:
-      return 'مشابه';
+      return 'Similar';
   }
 };
 
@@ -70,10 +70,10 @@ const DuplicateWarningDialog: React.FC<DuplicateWarningDialogProps> = ({
           </div>
           <div className="flex-1">
             <h3 className="text-lg font-bold text-slate-900 dark:text-white">
-              احتمال وجود نام مشابه
+              Possible Duplicate
             </h3>
             <p className="text-sm text-slate-500 dark:text-slate-400">
-              Possible Duplicate Detected
+              Similar name detected
             </p>
           </div>
           <button 
@@ -87,7 +87,7 @@ const DuplicateWarningDialog: React.FC<DuplicateWarningDialogProps> = ({
         {/* Content */}
         <div className="p-5 space-y-4">
           <p className="text-sm text-slate-600 dark:text-slate-300">
-            نام <span className="font-bold text-slate-900 dark:text-white">&ldquo;{inputName}&rdquo;</span> با نام‌های زیر در درخت خانواده شباهت دارد:
+            The name <span className="font-bold text-slate-900 dark:text-white">&ldquo;{inputName}&rdquo;</span> is similar to these names in the family tree:
           </p>
 
           {/* Matches List */}
@@ -116,23 +116,22 @@ const DuplicateWarningDialog: React.FC<DuplicateWarningDialogProps> = ({
           </div>
 
           <div className="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-blue-700 dark:text-blue-300 text-sm">
-            <p className="font-medium">💡 توجه</p>
+            <p className="font-medium">💡 Note</p>
             <p className="text-xs mt-1 opacity-80">
               {isAdmin 
-                ? 'به عنوان مدیر می‌توانید این نام را با وجود شباهت اضافه کنید.'
-                : 'می‌توانید درخواست خود را برای بررسی مدیر ارسال کنید.'
+                ? 'As an admin, you can add this name despite the similarity.'
+                : 'You can submit your suggestion for admin review.'
               }
             </p>
           </div>
         </div>
 
-        {/* Actions */}
         <div className="flex gap-3 p-5 border-t border-slate-200 dark:border-slate-700">
           <button
             onClick={onCancel}
             className="flex-1 py-2.5 px-4 rounded-xl font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
           >
-            انصراف
+            Cancel
           </button>
           
           {isAdmin ? (
@@ -141,7 +140,7 @@ const DuplicateWarningDialog: React.FC<DuplicateWarningDialogProps> = ({
               className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-medium text-white bg-indigo-600 hover:bg-indigo-700 transition-colors"
             >
               <UserPlus size={18} />
-              افزودن
+              Add Anyway
             </button>
           ) : (
             <button
@@ -149,7 +148,7 @@ const DuplicateWarningDialog: React.FC<DuplicateWarningDialogProps> = ({
               className="flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl font-medium text-white bg-amber-600 hover:bg-amber-700 transition-colors"
             >
               <FileText size={18} />
-              ارسال پیشنهاد
+              Submit Suggestion
             </button>
           )}
         </div>

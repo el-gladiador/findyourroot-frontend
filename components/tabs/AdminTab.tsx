@@ -4,7 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Users, CheckCircle, XCircle, Clock, Mail, MessageSquare, 
   UserCheck, Link2, Shield, UserMinus,
-  Edit3, Trash2, Plus, Eye, Bell, Instagram, Search
+  Edit3, Trash2, Plus, Eye, Bell, Instagram, Search, FileText, Upload, Loader2
 } from 'lucide-react';
 import { ApiClient } from '@/lib/api';
 import { 
@@ -89,6 +89,12 @@ const AdminTab = () => {
   } | null>(null);
   const [isLookingUpInstagram, setIsLookingUpInstagram] = useState(false);
   const [instagramError, setInstagramError] = useState<string | null>(null);
+  
+  // Populate Tree modal state (admin only)
+  const [showPopulateModal, setShowPopulateModal] = useState(false);
+  const [populateText, setPopulateText] = useState('');
+  const [isPopulating, setIsPopulating] = useState(false);
+  const [populateResult, setPopulateResult] = useState<{ success: boolean; message: string; count?: number } | null>(null);
   
   // Get family data for person selection
   const familyData = useAppStore((state) => state.familyData);
@@ -212,7 +218,7 @@ const AdminTab = () => {
   // Batch approve/reject handlers
   const handleBatchApprove = async (suggestionIds: string[], groupInfo: string) => {
     const count = suggestionIds.length;
-    if (confirm(`تایید ${count} پیشنهاد${count > 1 ? '' : ''} (${groupInfo})؟ تغییر روی درخت اعمال می‌شود.`)) {
+    if (confirm(`Approve ${count} suggestion${count > 1 ? 's' : ''} (${groupInfo})? Changes will be applied to the tree.`)) {
       const response = await ApiClient.batchReviewSuggestions(suggestionIds, true);
       if (!response.error) {
         fetchGroupedSuggestions();
@@ -222,7 +228,7 @@ const AdminTab = () => {
 
   const handleBatchReject = async (suggestionIds: string[], groupInfo: string) => {
     const count = suggestionIds.length;
-    if (confirm(`رد ${count} پیشنهاد${count > 1 ? '' : ''} (${groupInfo})؟`)) {
+    if (confirm(`Reject ${count} suggestion${count > 1 ? 's' : ''} (${groupInfo})?`)) {
       const response = await ApiClient.batchReviewSuggestions(suggestionIds, false);
       if (!response.error) {
         fetchGroupedSuggestions();
@@ -345,29 +351,35 @@ const AdminTab = () => {
   const rolesList: UserRole[] = ['viewer', 'contributor', 'editor', 'co-admin', 'admin'];
 
   return (
-    <div className="pb-24 pt-6 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      <div className="mb-6 flex items-start justify-between">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 dark:text-white mb-2">
-            {isAdmin ? 'Admin Panel' : 'Review Panel'}
-          </h2>
-          <p className="text-slate-600 dark:text-slate-400">
-            {isAdmin ? 'Manage requests, users, and contributions' : 'Review and manage contributions'}
-          </p>
-        </div>
-        {/* Real-time indicator */}
-        <div className="flex items-center gap-2 px-3 py-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg text-green-700 dark:text-green-400 text-sm">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-          <span className="hidden sm:inline">Live</span>
+    <div className="pb-24 pt-4 px-4">
+      {/* Compact header with live indicator */}
+      <div className="mb-4 flex items-center justify-between">
+        <h2 className="text-xl font-bold text-slate-800 dark:text-white">
+          {isAdmin ? 'Admin' : 'Review'}
+        </h2>
+        <div className="flex items-center gap-2">
+          {isAdmin && (
+            <button
+              onClick={() => setShowPopulateModal(true)}
+              className="flex items-center gap-1 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-full text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"
+            >
+              <FileText size={12} />
+              Populate
+            </button>
+          )}
+          <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 dark:bg-green-900/20 rounded-full text-green-600 dark:text-green-400 text-xs">
+            <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+            Live
+          </div>
         </div>
       </div>
 
       {/* Main Tab Selector */}
-      <div className="flex gap-1 mb-6 bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-100 dark:border-slate-700 overflow-x-auto">
+      <div className="flex gap-1 mb-4 bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-100 dark:border-slate-700 overflow-x-auto">
         {canReviewSuggestions && (
           <button
             onClick={() => setActiveTab('suggestions')}
-            className={`relative flex-1 px-3 py-2.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap ${
+            className={`relative flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeTab === 'suggestions'
                 ? 'bg-green-600 text-white'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
@@ -376,7 +388,7 @@ const AdminTab = () => {
             <Edit3 size={14} />
             Suggestions
             {pendingCounts.suggestions > 0 && activeTab !== 'suggestions' && (
-              <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+              <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                 {pendingCounts.suggestions > 9 ? '9+' : pendingCounts.suggestions}
               </span>
             )}
@@ -386,39 +398,39 @@ const AdminTab = () => {
           <>
             <button
               onClick={() => setActiveTab('permissions')}
-              className={`relative flex-1 px-3 py-2.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              className={`relative flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'permissions'
                   ? 'bg-indigo-600 text-white'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               <Users size={14} />
-              Permissions
+              Requests
               {pendingCounts.permissionRequests > 0 && activeTab !== 'permissions' && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                   {pendingCounts.permissionRequests > 9 ? '9+' : pendingCounts.permissionRequests}
                 </span>
               )}
             </button>
             <button
               onClick={() => setActiveTab('identity')}
-              className={`relative flex-1 px-3 py-2.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              className={`relative flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'identity'
                   ? 'bg-purple-600 text-white'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
               <UserCheck size={14} />
-              Identity
+              Claims
               {pendingCounts.identityClaims > 0 && activeTab !== 'identity' && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center">
                   {pendingCounts.identityClaims > 9 ? '9+' : pendingCounts.identityClaims}
                 </span>
               )}
             </button>
             <button
               onClick={() => setActiveTab('users')}
-              className={`flex-1 px-3 py-2.5 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap ${
+              className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'users'
                   ? 'bg-orange-600 text-white'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
@@ -434,169 +446,134 @@ const AdminTab = () => {
       {/* Suggestions Tab */}
       {activeTab === 'suggestions' && canReviewSuggestions && (
         <>
-          {/* View Mode Toggle */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex gap-2 bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-100 dark:border-slate-700">
+          {/* Controls row: view mode + status filter */}
+          <div className="flex items-center gap-2 mb-4 flex-wrap">
+            {/* View Mode */}
+            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
               <button
                 onClick={() => setSuggestionViewMode('grouped')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                   suggestionViewMode === 'grouped'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-600 dark:text-slate-400'
+                    ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400'
                 }`}
               >
-                📊 دسته‌بندی شده
+                Grouped
               </button>
               <button
                 onClick={() => setSuggestionViewMode('individual')}
-                className={`px-3 py-1.5 rounded-md text-xs font-medium transition-colors ${
+                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                   suggestionViewMode === 'individual'
-                    ? 'bg-blue-600 text-white'
-                    : 'text-slate-600 dark:text-slate-400'
+                    ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
+                    : 'text-slate-500 dark:text-slate-400'
                 }`}
               >
-                📝 تکی
+                Individual
               </button>
             </div>
-            {suggestionViewMode === 'grouped' && groupStats.total > 0 && (
-              <span className="text-xs text-slate-500" dir="rtl">
-                {groupStats.total} پیشنهاد در {groupStats.groups} گروه
-              </span>
-            )}
-          </div>
 
-          {/* Status Filter */}
-          <div className="flex gap-2 mb-6 bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-100 dark:border-slate-700">
-            <button
-              onClick={() => setSuggestionFilter('pending')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                suggestionFilter === 'pending'
-                  ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
-                  : 'text-slate-600 dark:text-slate-400'
-              }`}
-            >
-              <Clock size={16} className="inline mr-1" />
-              Pending
-            </button>
-            <button
-              onClick={() => setSuggestionFilter('approved')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                suggestionFilter === 'approved'
-                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                  : 'text-slate-600 dark:text-slate-400'
-              }`}
-            >
-              <CheckCircle size={16} className="inline mr-1" />
-              Approved
-            </button>
-            <button
-              onClick={() => setSuggestionFilter('rejected')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-                suggestionFilter === 'rejected'
-                  ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                  : 'text-slate-600 dark:text-slate-400'
-              }`}
-            >
-              <XCircle size={16} className="inline mr-1" />
-              Rejected
-            </button>
+            {/* Status Filter */}
+            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 flex-1 min-w-0">
+              <button
+                onClick={() => setSuggestionFilter('pending')}
+                className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  suggestionFilter === 'pending'
+                    ? 'bg-yellow-500 text-white'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                Pending
+              </button>
+              <button
+                onClick={() => setSuggestionFilter('approved')}
+                className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  suggestionFilter === 'approved'
+                    ? 'bg-green-500 text-white'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                Approved
+              </button>
+              <button
+                onClick={() => setSuggestionFilter('rejected')}
+                className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                  suggestionFilter === 'rejected'
+                    ? 'bg-red-500 text-white'
+                    : 'text-slate-500 dark:text-slate-400'
+                }`}
+              >
+                Rejected
+              </button>
+            </div>
           </div>
 
           {/* Grouped View */}
           {suggestionViewMode === 'grouped' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {isLoadingGrouped ? (
-                <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
                 </div>
               ) : groupedSuggestions.length === 0 ? (
-                <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
-                  <Edit3 size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
-                  <p className="text-slate-600 dark:text-slate-400">پیشنهاد {suggestionFilter === 'pending' ? 'در انتظار' : suggestionFilter === 'approved' ? 'تایید شده' : 'رد شده'}‌ای وجود ندارد</p>
+                <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                  <Edit3 size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                  <p className="text-sm text-slate-500 dark:text-slate-400">No {suggestionFilter} suggestions</p>
                 </div>
               ) : (
                 groupedSuggestions.map((group) => (
                   <div
                     key={group.group_id}
-                    className={`bg-white dark:bg-slate-800 rounded-xl border-2 ${
+                    className={`bg-white dark:bg-slate-800 rounded-lg border ${
                       group.has_conflicts 
-                        ? 'border-orange-400 dark:border-orange-600' 
+                        ? 'border-orange-300 dark:border-orange-700' 
                         : 'border-slate-200 dark:border-slate-700'
-                    } p-4`}
+                    } p-3`}
                   >
-                    {/* Header: Type badge + Count + Date */}
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${getSuggestionTypeBadge(group.type)}`}>
-                          {group.type === 'add' ? '➕ افزودن' : group.type === 'edit' ? '✏️ ویرایش' : '🗑️ حذف'}
+                    {/* Compact header */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium uppercase ${getSuggestionTypeBadge(group.type)}`}>
+                        {group.type}
+                      </span>
+                      {group.count > 1 && (
+                        <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-[10px] font-medium">
+                          {group.count} votes
                         </span>
-                        {group.count > 1 && (
-                          <span className="px-2 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 rounded text-xs font-bold">
-                            {group.count} رأی
-                          </span>
-                        )}
-                        {group.has_conflicts && (
-                          <span className="px-2 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 rounded text-xs font-bold animate-pulse">
-                            ⚠️ تعارض
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs text-slate-400">{formatDate(group.first_created_at)}</span>
+                      )}
+                      {group.has_conflicts && (
+                        <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded text-[10px] font-medium">
+                          Conflict
+                        </span>
+                      )}
+                      <span className="text-[10px] text-slate-400 ml-auto">{formatDate(group.first_created_at)}</span>
                     </div>
 
-                    {/* Conflict Warning */}
-                    {group.has_conflicts && group.conflict_type && (
-                      <div className="mb-3 p-2 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
-                        <p className="text-xs text-orange-700 dark:text-orange-300" dir="rtl">
-                          ⚠️ {group.conflict_type}
-                        </p>
-                      </div>
-                    )}
-
-                    {/* Main content */}
-                    <div className="mb-3" dir="auto">
+                    {/* Content */}
+                    <div className="mb-2">
                       {group.type === 'add' && group.person_data && (
                         <p className="text-sm text-slate-700 dark:text-slate-200">
-                          افزودن <span className="font-semibold">{group.person_data.name}</span>
-                          <span className="text-slate-500"> • {group.person_data.role}</span>
+                          Add <span className="font-medium">{group.person_data.name}</span>
+                          <span className="text-slate-400 text-xs"> • {group.person_data.role}</span>
                         </p>
                       )}
                       {group.type === 'edit' && group.target_person && (
                         <p className="text-sm text-slate-700 dark:text-slate-200">
-                          ویرایش <span className="font-semibold">{group.target_person.name}</span>
-                          {group.person_data?.name && group.person_data.name !== group.target_person.name && (
-                            <span className="text-slate-500"> → {group.person_data.name}</span>
-                          )}
+                          Edit <span className="font-medium">{group.target_person.name}</span>
                         </p>
                       )}
                       {group.type === 'delete' && group.target_person && (
                         <p className="text-sm text-red-600 dark:text-red-400">
-                          حذف <span className="font-semibold">{group.target_person.name}</span>
+                          Delete <span className="font-medium">{group.target_person.name}</span>
                         </p>
                       )}
                     </div>
 
-                    {/* Contributors */}
-                    <div className="mb-3" dir="rtl">
-                      <p className="text-xs text-slate-500">
-                        پیشنهاد از: {group.user_emails.slice(0, 3).join('، ')}
-                        {group.user_emails.length > 3 && ` و ${group.user_emails.length - 3} نفر دیگر`}
-                      </p>
-                    </div>
+                    {/* Contributors - simplified */}
+                    <p className="text-[10px] text-slate-400 mb-2">
+                      by {group.user_emails.slice(0, 2).join(', ')}
+                      {group.user_emails.length > 2 && ` +${group.user_emails.length - 2}`}
+                    </p>
 
-                    {/* Messages if exist */}
-                    {group.messages && group.messages.length > 0 && (
-                      <div className="mb-3 text-xs text-slate-500 dark:text-slate-400" dir="auto">
-                        <p className="font-medium mb-1">پیام‌ها:</p>
-                        {group.messages.slice(0, 2).map((msg: string, idx: number) => (
-                          <p key={idx} className="italic truncate">"{msg}"</p>
-                        ))}
-                        {group.messages.length > 2 && (
-                          <p className="text-slate-400">و {group.messages.length - 2} پیام دیگر...</p>
-                        )}
-                      </div>
-                    )}
-
+                    {/* Actions */}
                     {suggestionFilter === 'pending' && (
                       <div className="flex gap-2">
                         <button
@@ -604,31 +581,25 @@ const AdminTab = () => {
                             group.suggestion_ids, 
                             `${group.type} - ${group.target_person?.name || group.person_data?.name || 'unknown'}`
                           )}
-                          className={`flex-1 px-3 py-1.5 text-white text-sm rounded-lg transition-colors ${
-                            group.has_conflicts 
-                              ? 'bg-orange-500 hover:bg-orange-600' 
-                              : 'bg-green-600 hover:bg-green-700'
-                          }`}
+                          className="flex-1 px-2 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded-md transition-colors"
                         >
-                          {group.has_conflicts ? '⚠️ تایید با وجود تعارض' : '✓ تایید همه'}
+                          ✓ Approve
                         </button>
                         <button
                           onClick={() => handleBatchReject(
                             group.suggestion_ids,
                             `${group.type} - ${group.target_person?.name || group.person_data?.name || 'unknown'}`
                           )}
-                          className="flex-1 px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm rounded-lg transition-colors"
+                          className="flex-1 px-2 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-xs rounded-md transition-colors"
                         >
-                          ✗ رد همه
+                          ✗ Reject
                         </button>
                       </div>
                     )}
 
                     {suggestionFilter !== 'pending' && (
-                      <span className={`text-xs font-medium ${
-                        suggestionFilter === 'approved' ? 'text-green-600' : 'text-red-500'
-                      }`}>
-                        {suggestionFilter === 'approved' ? '✓ تایید شده' : '✗ رد شده'}
+                      <span className={`text-xs ${suggestionFilter === 'approved' ? 'text-green-600' : 'text-red-500'}`}>
+                        {suggestionFilter === 'approved' ? '✓ Approved' : '✗ Rejected'}
                       </span>
                     )}
                   </div>
@@ -639,78 +610,67 @@ const AdminTab = () => {
 
           {/* Individual View */}
           {suggestionViewMode === 'individual' && (
-            <div className="space-y-4">
+            <div className="space-y-3">
               {isLoadingRealtimeSuggestions ? (
-                <div className="flex justify-center py-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+                <div className="flex justify-center py-8">
+                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
                 </div>
               ) : realtimeSuggestions.length === 0 ? (
-                <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
-                  <Edit3 size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
-                  <p className="text-slate-600 dark:text-slate-400">No {suggestionFilter} suggestions</p>
+                <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                  <Edit3 size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                  <p className="text-sm text-slate-500 dark:text-slate-400">No {suggestionFilter} suggestions</p>
                 </div>
               ) : (
                 realtimeSuggestions.map((suggestion) => (
                   <div
                     key={suggestion.id}
-                    className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4"
+                    className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3"
                   >
-                    {/* Header: Type badge + Date */}
-                    <div className="flex items-center justify-between mb-2">
-                      <span className={`px-2 py-0.5 rounded text-xs font-medium capitalize ${getSuggestionTypeBadge(suggestion.type)}`}>
+                    {/* Compact header */}
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium uppercase ${getSuggestionTypeBadge(suggestion.type)}`}>
                         {suggestion.type}
                       </span>
-                      <span className="text-xs text-slate-400">{formatDate(suggestion.created_at)}</span>
+                      <span className="text-[10px] text-slate-400 ml-auto">{formatDate(suggestion.created_at)}</span>
                     </div>
 
-                    {/* Main content */}
-                    <div className="mb-3">
+                    {/* Content */}
+                    <div className="mb-2">
                       {suggestion.type === 'add' && suggestion.person_data && (
                         <p className="text-sm text-slate-700 dark:text-slate-200">
-                          Add <span className="font-semibold">{suggestion.person_data.name}</span>
-                          <span className="text-slate-500"> • {suggestion.person_data.role}</span>
+                          Add <span className="font-medium">{suggestion.person_data.name}</span>
+                          <span className="text-slate-400 text-xs"> • {suggestion.person_data.role}</span>
                         </p>
                       )}
                       {suggestion.type === 'edit' && suggestion.target_person && (
                         <p className="text-sm text-slate-700 dark:text-slate-200">
-                          Edit <span className="font-semibold">{suggestion.target_person.name}</span>
-                          {suggestion.person_data?.name && suggestion.person_data.name !== suggestion.target_person.name && (
-                            <span className="text-slate-500"> → {suggestion.person_data.name}</span>
-                          )}
+                          Edit <span className="font-medium">{suggestion.target_person.name}</span>
                         </p>
                       )}
                       {suggestion.type === 'delete' && suggestion.target_person && (
                         <p className="text-sm text-red-600 dark:text-red-400">
-                          Delete <span className="font-semibold">{suggestion.target_person.name}</span>
+                          Delete <span className="font-medium">{suggestion.target_person.name}</span>
                         </p>
                       )}
                     </div>
 
-                    {/* Contributor email */}
-                    <p className="text-xs text-slate-500 mb-3">
-                      by {suggestion.user_email}
-                    </p>
+                    {/* Contributor */}
+                    <p className="text-[10px] text-slate-400 mb-2">by {suggestion.user_email}</p>
 
-                    {/* Message if exists */}
-                    {suggestion.message && (
-                      <p className="text-xs text-slate-500 dark:text-slate-400 italic mb-3 truncate">
-                        "{suggestion.message}"
-                      </p>
-                    )}
-
+                    {/* Actions */}
                     {suggestionFilter === 'pending' && (
                       <div className="flex gap-2">
                         <button
                           onClick={() => handleApproveSuggestion(suggestion.id)}
-                          className="flex-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors"
+                          className="flex-1 px-2 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded-md transition-colors"
                         >
-                          Approve
+                          ✓ Approve
                         </button>
                         <button
                           onClick={() => handleRejectSuggestion(suggestion.id)}
-                          className="flex-1 px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm rounded-lg transition-colors"
+                          className="flex-1 px-2 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-xs rounded-md transition-colors"
                         >
-                          Reject
+                          ✗ Reject
                         </button>
                       </div>
                     )}
@@ -736,74 +696,72 @@ const AdminTab = () => {
       {/* Permission Requests Tab */}
       {activeTab === 'permissions' && isAdmin && (
         <>
-          <div className="flex gap-2 mb-6 bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-100 dark:border-slate-700">
+          {/* Compact status filter */}
+          <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 mb-4">
             <button
               onClick={() => setFilter('pending')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 filter === 'pending'
-                  ? 'bg-indigo-100 dark:bg-indigo-900/30 text-indigo-700 dark:text-indigo-300'
-                  : 'text-slate-600 dark:text-slate-400'
+                  ? 'bg-indigo-500 text-white'
+                  : 'text-slate-500 dark:text-slate-400'
               }`}
             >
-              <Clock size={16} className="inline mr-1" />
               Pending
             </button>
             <button
               onClick={() => setFilter('approved')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 filter === 'approved'
-                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                  : 'text-slate-600 dark:text-slate-400'
+                  ? 'bg-green-500 text-white'
+                  : 'text-slate-500 dark:text-slate-400'
               }`}
             >
-              <CheckCircle size={16} className="inline mr-1" />
               Approved
             </button>
             <button
               onClick={() => setFilter('rejected')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 filter === 'rejected'
-                  ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                  : 'text-slate-600 dark:text-slate-400'
+                  ? 'bg-red-500 text-white'
+                  : 'text-slate-500 dark:text-slate-400'
               }`}
             >
-              <XCircle size={16} className="inline mr-1" />
               Rejected
             </button>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {isLoadingRealtimeRequests ? (
-              <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
               </div>
             ) : realtimeRequests.length === 0 ? (
-              <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
-                <Users size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
-                <p className="text-slate-600 dark:text-slate-400">No {filter} requests</p>
+              <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                <Users size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                <p className="text-sm text-slate-500 dark:text-slate-400">No {filter} requests</p>
               </div>
             ) : (
               (realtimeRequests as PermissionRequest[]).map((request) => (
                 <div
                   key={request.id}
-                  className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4"
+                  className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3"
                 >
-                  {/* Header: Role badge + Date */}
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`px-2 py-0.5 rounded text-xs font-medium ${getRoleBadgeColor(request.requested_role)}`}>
+                  {/* Compact header */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getRoleBadgeColor(request.requested_role)}`}>
                       {getRoleLabel(request.requested_role)}
                     </span>
-                    <span className="text-xs text-slate-400">{formatDate(request.created_at)}</span>
+                    <span className="text-[10px] text-slate-400 ml-auto">{formatDate(request.created_at)}</span>
                   </div>
 
                   {/* Email */}
-                  <p className="text-sm text-slate-700 dark:text-slate-200 mb-1">
+                  <p className="text-sm text-slate-700 dark:text-slate-200 mb-2">
                     {request.user_email}
                   </p>
 
                   {/* Message if exists */}
                   {request.message && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 italic mb-3 truncate">
+                    <p className="text-[10px] text-slate-400 italic mb-2 truncate">
                       "{request.message}"
                     </p>
                   )}
@@ -842,77 +800,75 @@ const AdminTab = () => {
       {/* Identity Claims Tab */}
       {activeTab === 'identity' && isAdmin && (
         <>
-          <div className="flex gap-2 mb-6 bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-100 dark:border-slate-700">
+          {/* Compact status filter */}
+          <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 mb-4">
             <button
               onClick={() => setClaimFilter('pending')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 claimFilter === 'pending'
-                  ? 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300'
-                  : 'text-slate-600 dark:text-slate-400'
+                  ? 'bg-yellow-500 text-white'
+                  : 'text-slate-500 dark:text-slate-400'
               }`}
             >
-              <Clock size={16} className="inline mr-1" />
               Pending
             </button>
             <button
               onClick={() => setClaimFilter('approved')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 claimFilter === 'approved'
-                  ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'
-                  : 'text-slate-600 dark:text-slate-400'
+                  ? 'bg-green-500 text-white'
+                  : 'text-slate-500 dark:text-slate-400'
               }`}
             >
-              <Link2 size={16} className="inline mr-1" />
               Linked
             </button>
             <button
               onClick={() => setClaimFilter('rejected')}
-              className={`flex-1 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+              className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 claimFilter === 'rejected'
-                  ? 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300'
-                  : 'text-slate-600 dark:text-slate-400'
+                  ? 'bg-red-500 text-white'
+                  : 'text-slate-500 dark:text-slate-400'
               }`}
             >
-              <XCircle size={16} className="inline mr-1" />
               Rejected
             </button>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-3">
             {isLoadingRealtimeClaims ? (
-              <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-purple-600"></div>
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
               </div>
             ) : realtimeClaims.length === 0 ? (
-              <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
-                <UserCheck size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
-                <p className="text-slate-600 dark:text-slate-400">No {claimFilter} identity claims</p>
+              <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                <UserCheck size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                <p className="text-sm text-slate-500 dark:text-slate-400">No {claimFilter} claims</p>
               </div>
             ) : (
               (realtimeClaims as IdentityClaimRequest[]).map((claim) => (
                 <div
                   key={claim.id}
-                  className="bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 p-4"
+                  className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3"
                 >
-                  {/* Header: Identity label + Date */}
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="px-2 py-0.5 rounded text-xs font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                  {/* Compact header */}
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
                       Identity Claim
                     </span>
-                    <span className="text-xs text-slate-400">{formatDate(claim.created_at)}</span>
+                    <span className="text-[10px] text-slate-400 ml-auto">{formatDate(claim.created_at)}</span>
                   </div>
 
                   {/* Claim info */}
                   <p className="text-sm text-slate-700 dark:text-slate-200 mb-1">
-                    <span className="text-slate-500">Claims:</span> <span className="font-semibold">{claim.person_name}</span>
+                    <span className="text-slate-500 text-xs">Claims:</span> <span className="font-medium">{claim.person_name}</span>
                   </p>
-                  <p className="text-xs text-slate-500 mb-3">
+                  <p className="text-[10px] text-slate-400 mb-2">
                     by {claim.user_email}
                   </p>
 
                   {/* Message if exists */}
                   {claim.message && (
-                    <p className="text-xs text-slate-500 dark:text-slate-400 italic mb-3 truncate">
+                    <p className="text-[10px] text-slate-400 italic mb-2 truncate">
                       "{claim.message}"
                     </p>
                   )}
@@ -921,13 +877,13 @@ const AdminTab = () => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleApproveClaim(claim.id)}
-                        className="flex-1 px-3 py-1.5 bg-purple-600 hover:bg-purple-700 text-white text-sm rounded-lg transition-colors"
+                        className="flex-1 px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded-md transition-colors"
                       >
                         Link
                       </button>
                       <button
                         onClick={() => handleRejectClaim(claim.id)}
-                        className="flex-1 px-3 py-1.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-sm rounded-lg transition-colors"
+                        className="flex-1 px-2 py-1 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-700 dark:text-slate-200 text-xs rounded-md transition-colors"
                       >
                         Reject
                       </button>
@@ -935,7 +891,7 @@ const AdminTab = () => {
                   )}
 
                   {claimFilter !== 'pending' && (
-                    <span className={`text-xs font-medium ${
+                    <span className={`text-[10px] font-medium ${
                       claimFilter === 'approved' ? 'text-green-600' : 'text-red-500'
                     }`}>
                       {claimFilter === 'approved' ? '✓ Linked' : '✗ Rejected'}
@@ -951,22 +907,15 @@ const AdminTab = () => {
       {/* Users Management Tab */}
       {activeTab === 'users' && isAdmin && (
         <>
-          <div className="mb-4 p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg border border-orange-200 dark:border-orange-800">
-            <p className="text-sm text-orange-700 dark:text-orange-300">
-              <Shield size={14} className="inline mr-1" />
-              Manage user roles and access permissions
-            </p>
-          </div>
-
           <div className="space-y-3">
             {isLoadingUsers ? (
-              <div className="flex justify-center py-12">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-600"></div>
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
               </div>
             ) : users.length === 0 ? (
-              <div className="text-center py-12 bg-white dark:bg-slate-800 rounded-2xl border border-slate-100 dark:border-slate-700">
-                <Users size={48} className="mx-auto text-slate-300 dark:text-slate-600 mb-3" />
-                <p className="text-slate-600 dark:text-slate-400">No users found</p>
+              <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                <Users size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                <p className="text-sm text-slate-500 dark:text-slate-400">No users found</p>
               </div>
             ) : (
               users.map((u) => {
@@ -975,42 +924,42 @@ const AdminTab = () => {
                 return (
                 <div
                   key={u.id}
-                  className="bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700 p-4"
+                  className="bg-white dark:bg-slate-800 rounded-lg border border-slate-100 dark:border-slate-700 p-3"
                 >
                   {/* User info row */}
-                  <div className="flex items-center gap-3 min-w-0">
-                    <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white font-semibold shrink-0">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center text-white text-xs font-semibold shrink-0">
                       {u.email.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="font-medium text-slate-800 dark:text-white truncate">{u.email}</p>
-                      <div className="flex items-center gap-2 mt-0.5 flex-wrap">
-                        <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${getRoleBadgeColor(u.role)}`}>
+                      <p className="text-sm font-medium text-slate-800 dark:text-white truncate">{u.email}</p>
+                      <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                        <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${getRoleBadgeColor(u.role)}`}>
                           {getRoleLabel(u.role)}
                         </span>
                         {u.is_verified && (
-                          <span className="text-xs text-green-600 dark:text-green-400 flex items-center gap-0.5">
-                            <CheckCircle size={10} /> Verified
+                          <span className="text-[10px] text-green-600 dark:text-green-400 flex items-center gap-0.5">
+                            <CheckCircle size={8} /> Verified
                           </span>
                         )}
                         {linkedPerson && (
-                          <span className="text-xs text-purple-600 dark:text-purple-400 flex items-center gap-0.5 truncate max-w-[120px]">
-                            <Link2 size={10} className="shrink-0" /> <span className="truncate">{linkedPerson.name}</span>
+                          <span className="text-[10px] text-purple-600 dark:text-purple-400 flex items-center gap-0.5 truncate max-w-[100px]">
+                            <Link2 size={8} className="shrink-0" /> <span className="truncate">{linkedPerson.name}</span>
                           </span>
                         )}
                       </div>
                     </div>
                   </div>
                   
-                  {/* Actions row - show for all users including self */}
-                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 flex-wrap">
-                    {/* Link/Unlink button - check linkedPerson exists, not just person_id (handles deleted persons) */}
+                  {/* Compact actions row */}
+                  <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100 dark:border-slate-700 flex-wrap">
+                    {/* Link/Unlink button */}
                     {!linkedPerson ? (
                       <button
                         onClick={() => { setLinkUserId(u.id); setShowLinkModal(true); }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
+                        className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-md transition-colors"
                       >
-                        <Link2 size={14} />
+                        <Link2 size={10} />
                         Link
                       </button>
                     ) : (
@@ -1020,36 +969,34 @@ const AdminTab = () => {
                             ApiClient.unlinkIdentity(u.id).then(() => fetchUsers());
                           }
                         }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200 dark:hover:bg-purple-900/40 rounded-lg transition-colors"
+                        className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200 dark:hover:bg-purple-900/40 rounded-md transition-colors"
                       >
-                        <Link2 size={14} />
+                        <Link2 size={10} />
                         Unlink
                       </button>
                     )}
-                    {/* Only show role/revoke buttons for other users */}
                     {u.email !== user?.email && (
                       <>
                         <button
                           onClick={() => { setSelectedUser(u); setShowRoleModal(true); }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                          className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded-md transition-colors"
                         >
-                          <Edit3 size={14} />
+                          <Edit3 size={10} />
                           Role
                         </button>
                         {u.role !== 'viewer' && (
                           <button
                             onClick={() => handleRevokeAccess(u.id)}
-                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                            className="flex items-center gap-1 px-2 py-1 text-[10px] font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-md transition-colors"
                           >
-                            <UserMinus size={14} />
+                            <UserMinus size={10} />
                             Revoke
                           </button>
                         )}
                       </>
                     )}
-                    {/* "This is you" label */}
                     {u.email === user?.email && (
-                      <span className="text-xs text-slate-400 italic ml-auto">This is you</span>
+                      <span className="text-[10px] text-slate-400 italic ml-auto">You</span>
                     )}
                   </div>
                 </div>
@@ -1059,24 +1006,24 @@ const AdminTab = () => {
         </>
       )}
 
-      {/* Role Modal - Inline to prevent focus loss */}
+      {/* Role Modal */}
       {showRoleModal && selectedUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md p-6">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-              Change Role for {selectedUser.email}
+          <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm p-4">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-1">
+              Change Role
             </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-              Current role: <span className={`px-2 py-0.5 rounded-full text-xs ${getRoleBadgeColor(selectedUser.role)}`}>{getRoleLabel(selectedUser.role)}</span>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+              {selectedUser.email} • <span className={`px-1.5 py-0.5 rounded text-[10px] ${getRoleBadgeColor(selectedUser.role)}`}>{getRoleLabel(selectedUser.role)}</span>
             </p>
             
-            <div className="space-y-2 mb-6">
+            <div className="space-y-1.5 mb-4">
               {rolesList.map((role) => (
                 <button
                   key={role}
                   onClick={() => handleUpdateUserRole(selectedUser.id, role)}
                   disabled={role === selectedUser.role}
-                  className={`w-full p-3 rounded-lg text-left transition-colors ${
+                  className={`w-full p-2 rounded-lg text-left transition-colors ${
                     role === selectedUser.role
                       ? 'bg-slate-100 dark:bg-slate-700 opacity-50 cursor-not-allowed'
                       : 'bg-slate-50 dark:bg-slate-700/50 hover:bg-slate-100 dark:hover:bg-slate-700'
@@ -1084,11 +1031,11 @@ const AdminTab = () => {
                 >
                   <div className="flex items-center justify-between">
                     <div>
-                      <p className="font-medium text-slate-900 dark:text-white">{getRoleLabel(role)}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{getRoleDescription(role)}</p>
+                      <p className="text-sm font-medium text-slate-900 dark:text-white">{getRoleLabel(role)}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">{getRoleDescription(role)}</p>
                     </div>
                     {role === selectedUser.role && (
-                      <span className="text-xs text-slate-400">Current</span>
+                      <span className="text-[10px] text-slate-400">Current</span>
                     )}
                   </div>
                 </button>
@@ -1097,7 +1044,7 @@ const AdminTab = () => {
 
             <button
               onClick={() => { setShowRoleModal(false); setSelectedUser(null); }}
-              className="w-full py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+              className="w-full py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
             >
               Cancel
             </button>
@@ -1105,24 +1052,24 @@ const AdminTab = () => {
         </div>
       )}
 
-      {/* Link Modal - Inline to prevent focus loss */}
+      {/* Link Modal */}
       {showLinkModal && linkTargetUser && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white dark:bg-slate-800 rounded-2xl w-full max-w-md p-6 max-h-[80vh] overflow-y-auto">
-            <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">
-              Link User to Tree Node
+          <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-sm p-4 max-h-[80vh] overflow-y-auto">
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-white mb-1">
+              Link to Tree
             </h3>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-              Linking <span className="font-medium text-slate-700 dark:text-slate-300">{linkTargetUser.email}</span> to a family tree member
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+              {linkTargetUser.email}
             </p>
             
-            {/* Instagram Input with Lookup */}
-            <div className="mb-4">
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                <Instagram size={16} className="text-pink-500" />
-                Instagram Username (optional)
+            {/* Instagram Input */}
+            <div className="mb-3">
+              <label className="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                <Instagram size={12} className="text-pink-500" />
+                Instagram (optional)
               </label>
-              <div className="flex gap-2">
+              <div className="flex gap-1.5">
                 <input
                   type="text"
                   value={linkInstagram}
@@ -1131,82 +1078,67 @@ const AdminTab = () => {
                     setInstagramProfile(null);
                     setInstagramError(null);
                   }}
-                  placeholder="username (without @)"
-                  className="flex-1 px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white"
+                  placeholder="username"
+                  className="flex-1 px-2 py-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white"
                 />
                 <button
                   onClick={handleInstagramLookup}
                   disabled={!linkInstagram.trim() || isLookingUpInstagram}
-                  className="px-4 py-2 bg-pink-500 hover:bg-pink-600 text-white rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1.5"
+                  className="px-2.5 py-1.5 bg-pink-500 hover:bg-pink-600 text-white rounded-lg text-xs disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex items-center gap-1"
                 >
                   {isLookingUpInstagram ? (
-                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   ) : (
-                    <Search size={16} />
+                    <Search size={12} />
                   )}
-                  Lookup
                 </button>
               </div>
               
               {/* Instagram Profile Preview */}
               {instagramProfile && (
-                <div className="mt-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-pink-200 dark:border-pink-800">
-                  <div className="flex items-center gap-3">
+                <div className="mt-2 p-2 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-lg border border-pink-200 dark:border-pink-800">
+                  <div className="flex items-center gap-2">
                     <img
                       src={instagramProfile.avatar_url}
                       alt={instagramProfile.username}
-                      className="w-12 h-12 rounded-full object-cover border-2 border-pink-300 dark:border-pink-600"
+                      className="w-8 h-8 rounded-full object-cover border border-pink-300 dark:border-pink-600"
                     />
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="font-semibold text-slate-900 dark:text-white truncate">
-                          {instagramProfile.full_name || instagramProfile.username}
-                        </p>
-                        {instagramProfile.is_verified && (
-                          <CheckCircle size={14} className="text-blue-500 shrink-0" />
-                        )}
-                      </div>
-                      <p className="text-xs text-pink-600 dark:text-pink-400">@{instagramProfile.username}</p>
-                      {instagramProfile.bio && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 line-clamp-2">{instagramProfile.bio}</p>
-                      )}
+                      <p className="text-xs font-medium text-slate-900 dark:text-white truncate">
+                        {instagramProfile.full_name || instagramProfile.username}
+                      </p>
+                      <p className="text-[10px] text-pink-600 dark:text-pink-400">@{instagramProfile.username}</p>
                     </div>
                   </div>
-                  <p className="text-xs text-green-600 dark:text-green-400 mt-2 flex items-center gap-1">
-                    <CheckCircle size={12} />
-                    Profile found! Their photo will be used as avatar.
-                  </p>
                 </div>
               )}
               
               {/* Instagram Error */}
               {instagramError && (
-                <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-                  <p className="text-xs text-red-600 dark:text-red-400">{instagramError}</p>
-                </div>
+                <p className="text-[10px] text-red-500 mt-1">{instagramError}</p>
               )}
             </div>
             
             {/* Search persons */}
-            <div className="mb-4">
-              <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
-                <Search size={16} />
-                Search Tree Node
+            <div className="mb-3">
+              <label className="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                <Search size={12} />
+                Search Tree
               </label>
               <input
                 type="text"
                 value={linkPersonSearch}
                 onChange={(e) => setLinkPersonSearch(e.target.value)}
                 placeholder="Search by name..."
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white"
+                className="w-full px-2 py-1.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white"
               />
             </div>
             
             {/* Available persons */}
-            <div className="space-y-2 mb-4 max-h-60 overflow-y-auto">
+            <div className="space-y-1.5 mb-3 max-h-48 overflow-y-auto">
               {unlinkedPersons.length === 0 ? (
-                <p className="text-sm text-slate-500 dark:text-slate-400 text-center py-4">
-                  No unlinked persons found
+                <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-3">
+                  No unlinked persons
                 </p>
               ) : (
                 unlinkedPersons.slice(0, 10).map((person) => (
@@ -1214,28 +1146,28 @@ const AdminTab = () => {
                     key={person.id}
                     onClick={() => handleLinkUserToPerson(person.id)}
                     disabled={isLinking}
-                    className="w-full p-3 rounded-lg text-left bg-slate-50 dark:bg-slate-700/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors disabled:opacity-50 flex items-center gap-3"
+                    className="w-full p-2 rounded-lg text-left bg-slate-50 dark:bg-slate-700/50 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 transition-colors disabled:opacity-50 flex items-center gap-2"
                   >
                     <img
-                      src={person.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=6366f1&color=fff&size=40`}
+                      src={person.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=6366f1&color=fff&size=32`}
                       alt={person.name}
-                      className="w-10 h-10 rounded-full object-cover"
+                      className="w-8 h-8 rounded-full object-cover"
                     />
                     <div>
-                      <p className="font-medium text-slate-900 dark:text-white">{person.name}</p>
-                      <p className="text-xs text-slate-500 dark:text-slate-400">{person.role}</p>
+                      <p className="text-xs font-medium text-slate-900 dark:text-white">{person.name}</p>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">{person.role}</p>
                     </div>
                     {isLinking && (
                       <div className="ml-auto">
-                        <div className="w-5 h-5 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
                       </div>
                     )}
                   </button>
                 ))
               )}
               {unlinkedPersons.length > 10 && (
-                <p className="text-xs text-slate-500 text-center py-2">
-                  +{unlinkedPersons.length - 10} more results. Refine your search.
+                <p className="text-[10px] text-slate-500 text-center py-1">
+                  +{unlinkedPersons.length - 10} more
                 </p>
               )}
             </div>
@@ -1249,10 +1181,114 @@ const AdminTab = () => {
                 setInstagramProfile(null);
                 setInstagramError(null);
               }}
-              className="w-full py-2 text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
+              className="w-full py-1.5 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200 transition-colors"
             >
               Cancel
             </button>
+          </div>
+        </div>
+      )}
+
+      {/* Populate Tree Modal */}
+      {showPopulateModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white dark:bg-slate-800 rounded-xl w-full max-w-lg p-4 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-2">
+                <FileText size={16} className="text-indigo-500" />
+                Populate Tree from Text
+              </h3>
+              <button
+                onClick={() => { setShowPopulateModal(false); setPopulateText(''); setPopulateResult(null); }}
+                className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
+              >
+                <XCircle size={16} />
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
+              Paste an indentation-based list. Each level of indentation (2 or 4 spaces, or tab) creates a child.
+            </p>
+
+            {/* Example */}
+            <div className="mb-3 p-2 bg-slate-50 dark:bg-slate-900 rounded-lg border border-slate-200 dark:border-slate-700">
+              <p className="text-[10px] text-slate-400 mb-1">Example:</p>
+              <pre className="text-[10px] text-slate-600 dark:text-slate-300 font-mono whitespace-pre">
+{`Grandfather
+    Father
+        Child 1
+        Child 2
+    Uncle
+Grandmother`}
+              </pre>
+            </div>
+
+            {/* Text Input */}
+            <textarea
+              value={populateText}
+              onChange={(e) => setPopulateText(e.target.value)}
+              placeholder="Paste your family tree here..."
+              className="w-full h-48 px-3 py-2 text-xs font-mono bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white resize-none"
+            />
+
+            {/* Result message */}
+            {populateResult && (
+              <div className={`mt-3 p-2 rounded-lg text-xs ${
+                populateResult.success 
+                  ? 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'
+                  : 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'
+              }`}>
+                {populateResult.message}
+                {populateResult.count !== undefined && (
+                  <span className="font-medium"> ({populateResult.count} people created)</span>
+                )}
+              </div>
+            )}
+
+            {/* Actions */}
+            <div className="flex gap-2 mt-3">
+              <button
+                onClick={() => { setShowPopulateModal(false); setPopulateText(''); setPopulateResult(null); }}
+                className="flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  if (!populateText.trim()) return;
+                  setIsPopulating(true);
+                  setPopulateResult(null);
+                  
+                  const response = await ApiClient.populateTreeFromText(populateText);
+                  
+                  if (response.error) {
+                    setPopulateResult({ success: false, message: response.error });
+                  } else if (response.data) {
+                    setPopulateResult({ 
+                      success: true, 
+                      message: 'Tree populated successfully!',
+                      count: response.data.created_count
+                    });
+                    setPopulateText('');
+                  }
+                  setIsPopulating(false);
+                }}
+                disabled={isPopulating || !populateText.trim()}
+                className="flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+              >
+                {isPopulating ? (
+                  <>
+                    <Loader2 size={12} className="animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <Upload size={12} />
+                    Populate Tree
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -33,9 +33,9 @@ const AboutTab = () => (
     </div>
 
     <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-900/50">
-      <h3 className="font-bold text-lg text-indigo-900 dark:text-white mb-2">چرا این اپ رو ساختم؟</h3>
-      <p className="text-indigo-800 dark:text-indigo-200 text-sm leading-relaxed" dir="rtl">
-        همیشه دوست داشتم یک نسخه دیجیتال از شجره‌نامه خانوادگیمون داشته باشیم که همه بتونن ببینن و بهش اضافه کنن. این اپ کمک می‌کنه خاطرات و داستان‌های نسل‌های گذشته رو حفظ کنیم و به نسل‌های آینده منتقل کنیم. امیدوارم لذت ببرید! 🌳
+      <h3 className="font-bold text-lg text-indigo-900 dark:text-white mb-2">Why I Built This App</h3>
+      <p className="text-indigo-800 dark:text-indigo-200 text-sm leading-relaxed">
+        I always wanted a digital version of our family tree that everyone could view and contribute to. This app helps preserve the memories and stories of past generations and pass them on to future generations. Hope you enjoy it! 🌳
       </p>
     </div>
   </div>
