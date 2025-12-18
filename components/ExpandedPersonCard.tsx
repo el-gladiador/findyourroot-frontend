@@ -2,7 +2,7 @@
 
 import React, { memo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Calendar, Edit3, Trash2, UserPlus, Loader2, Instagram, Heart, Flame } from 'lucide-react';
+import { X, Calendar, Edit3, Trash2, UserPlus, Loader2, Instagram, Heart, Flame, Check, Link } from 'lucide-react';
 import { Person } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
 import { ApiClient } from '@/lib/api';
@@ -17,7 +17,22 @@ interface ExpandedPersonCardProps {
   isContributor?: boolean; // Keep for API but not used in UI
   onSuccess?: (message: string) => void;
   currentUserId?: string; // Current user's ID to check if already liked
+  isAdmin?: boolean; // Is current user an admin
 }
+
+// Parse Instagram username from URL or handle
+const parseInstagramUsername = (input: string): string => {
+  let username = input.trim();
+  username = username.replace(/^@/, '');
+  // Handle full URL
+  if (username.includes('instagram.com/')) {
+    const parts = username.split('instagram.com/');
+    if (parts.length > 1) {
+      username = parts[1].split('/')[0].split('?')[0];
+    }
+  }
+  return username;
+};
 
 // Get avatar URL with fallback
 const getAvatarUrl = (person: Person, useFallback: boolean = false): string => {
@@ -75,6 +90,7 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
   isContributor = false,
   onSuccess,
   currentUserId,
+  isAdmin = false,
 }) => {
   const removePerson = useAppStore((state) => state.removePerson);
   const updatePersonLocal = useAppStore((state) => state.updatePersonLocal);
@@ -83,6 +99,16 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
   const [localLikesCount, setLocalLikesCount] = useState(person.likes_count || 0);
   const [localLikedBy, setLocalLikedBy] = useState<string[]>(person.liked_by || []);
   const [avatarFailed, setAvatarFailed] = useState(false);
+  
+  // Instagram editing state
+  const [showInstagramInput, setShowInstagramInput] = useState(false);
+  const [instagramUrl, setInstagramUrl] = useState('');
+  const [isSavingInstagram, setIsSavingInstagram] = useState(false);
+  const [localInstagramUsername, setLocalInstagramUsername] = useState(person.instagram_username || '');
+  
+  // Can edit Instagram: admin for any linked person, or user for their own node
+  const isOwnNode = person.linked_user_id === currentUserId;
+  const canEditInstagram = person.linked_user_id && (isAdmin || isOwnNode);
   
   const hasLiked = currentUserId ? localLikedBy.includes(currentUserId) : false;
   
@@ -137,6 +163,42 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
       console.error('Failed to toggle like:', error);
     } finally {
       setIsLiking(false);
+    }
+  };
+
+  const handleSaveInstagram = async () => {
+    if (!instagramUrl.trim()) {
+      setShowInstagramInput(false);
+      return;
+    }
+    
+    setIsSavingInstagram(true);
+    try {
+      const username = parseInstagramUsername(instagramUrl);
+      
+      let result;
+      if (isOwnNode) {
+        // User updating their own node
+        result = await ApiClient.updateMyInstagram(username);
+      } else if (isAdmin) {
+        // Admin updating any node
+        result = await ApiClient.updatePersonInstagram(person.id, username);
+      }
+      
+      if (result && !result.error) {
+        setLocalInstagramUsername(username);
+        updatePersonLocal(person.id, { instagram_username: username });
+        onSuccess?.('Instagram linked successfully!');
+        setShowInstagramInput(false);
+        setInstagramUrl('');
+      } else {
+        onSuccess?.(`Error: ${result?.error || 'Failed to update Instagram'}`);
+      }
+    } catch (error) {
+      console.error('Failed to save Instagram:', error);
+      onSuccess?.('Failed to update Instagram');
+    } finally {
+      setIsSavingInstagram(false);
     }
   };
 
@@ -302,31 +364,46 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
               )}
 
               {/* Instagram Link - Only show if person is linked to a user */}
-              {person.linked_user_id && person.instagram_username && (
+              {person.linked_user_id && localInstagramUsername && (
                 <div className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl">
-                  <a
-                    href={`https://instagram.com/${person.instagram_username}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center gap-3 hover:opacity-80 transition-opacity"
-                  >
-                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center flex-shrink-0">
-                      <Instagram size={16} className="text-white" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-1.5">
-                        <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">@{person.instagram_username}</p>
-                        {person.instagram_is_verified && (
-                          <svg className="w-4 h-4 text-blue-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
-                          </svg>
+                  <div className="flex items-center gap-3">
+                    <a
+                      href={`https://instagram.com/${localInstagramUsername}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-3 flex-1 hover:opacity-80 transition-opacity"
+                    >
+                      <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center flex-shrink-0">
+                        <Instagram size={16} className="text-white" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">@{localInstagramUsername}</p>
+                          {person.instagram_is_verified && (
+                            <svg className="w-4 h-4 text-blue-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                              <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                            </svg>
+                          )}
+                        </div>
+                        {person.instagram_full_name && person.instagram_full_name !== localInstagramUsername && (
+                          <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{person.instagram_full_name}</p>
                         )}
                       </div>
-                      {person.instagram_full_name && person.instagram_full_name !== person.instagram_username && (
-                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{person.instagram_full_name}</p>
-                      )}
-                    </div>
-                  </a>
+                    </a>
+                    {/* Edit button for admin or owner */}
+                    {canEditInstagram && (
+                      <button
+                        onClick={() => {
+                          setInstagramUrl(localInstagramUsername);
+                          setShowInstagramInput(true);
+                        }}
+                        className="p-1.5 text-slate-400 hover:text-purple-500 transition-colors"
+                        title="Edit Instagram"
+                      >
+                        <Edit3 size={14} />
+                      </button>
+                    )}
+                  </div>
                   {/* Instagram Bio */}
                   {person.instagram_bio && (
                     <p className="mt-2 text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3">
@@ -336,8 +413,61 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
                 </div>
               )}
 
-              {/* Linked Account Badge - Show if linked but no Instagram */}
-              {person.linked_user_id && !person.instagram_username && (
+              {/* Instagram Input - Show when editing or when no Instagram set but can edit */}
+              {showInstagramInput && canEditInstagram && (
+                <div className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl">
+                  <div className="flex items-center gap-2">
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center flex-shrink-0">
+                      <Instagram size={16} className="text-white" />
+                    </div>
+                    <input
+                      type="text"
+                      value={instagramUrl}
+                      onChange={(e) => setInstagramUrl(e.target.value)}
+                      placeholder="Paste Instagram URL or username"
+                      className="flex-1 px-2 py-1.5 text-sm bg-white dark:bg-slate-800 border border-purple-200 dark:border-purple-800 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
+                      autoFocus
+                    />
+                    <button
+                      onClick={handleSaveInstagram}
+                      disabled={isSavingInstagram}
+                      className="p-1.5 bg-purple-500 text-white rounded-lg hover:bg-purple-600 disabled:opacity-50"
+                    >
+                      {isSavingInstagram ? <Loader2 size={16} className="animate-spin" /> : <Check size={16} />}
+                    </button>
+                    <button
+                      onClick={() => {
+                        setShowInstagramInput(false);
+                        setInstagramUrl('');
+                      }}
+                      className="p-1.5 text-slate-400 hover:text-slate-600"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                  <p className="mt-1.5 text-[10px] text-slate-500 dark:text-slate-400">
+                    Paste your Instagram profile URL or just the username
+                  </p>
+                </div>
+              )}
+
+              {/* Link Instagram Button - Show if linked but no Instagram AND can edit */}
+              {person.linked_user_id && !localInstagramUsername && canEditInstagram && !showInstagramInput && (
+                <button
+                  onClick={() => setShowInstagramInput(true)}
+                  className="w-full flex items-center gap-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl hover:from-purple-100 hover:to-pink-100 dark:hover:from-purple-900/30 dark:hover:to-pink-900/30 transition-colors"
+                >
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center flex-shrink-0">
+                    <Link size={16} className="text-white" />
+                  </div>
+                  <span className="text-sm font-medium text-purple-700 dark:text-purple-300">
+                    {isOwnNode ? 'Link your Instagram' : 'Link Instagram'}
+                  </span>
+                </button>
+              )}
+
+              {/* Linked Account Badge - Show if linked but no Instagram AND cannot edit */}
+              {person.linked_user_id && !localInstagramUsername && !canEditInstagram && (
                 <div className="flex items-center gap-2 p-2 bg-emerald-50 dark:bg-emerald-900/20 rounded-lg">
                   <div className="w-6 h-6 rounded-full bg-emerald-500 flex items-center justify-center">
                     <svg className="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 20 20">

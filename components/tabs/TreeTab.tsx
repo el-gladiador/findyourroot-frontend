@@ -950,6 +950,7 @@ const TreeTab = () => {
           isContributor={isContributor}
           onSuccess={showSuccess}
           currentUserId={user?.id}
+          isAdmin={isAdmin}
         />
       )}
     </AnimatePresence>

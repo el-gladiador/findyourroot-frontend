@@ -510,9 +510,17 @@ export class ApiClient {
     });
   }
 
-  // Update person's Instagram username - admin only
+  // Update person's Instagram username - admin only (for any linked person)
   static async updatePersonInstagram(personId: string, instagramUsername: string): Promise<ApiResponse<any>> {
     return this.request(`/api/v1/admin/person/${personId}/instagram`, {
+      method: 'PUT',
+      body: JSON.stringify({ instagram_username: instagramUsername }),
+    });
+  }
+
+  // Update own Instagram username (for user's linked tree node)
+  static async updateMyInstagram(instagramUsername: string): Promise<ApiResponse<{ message: string; username: string }>> {
+    return this.request(`/api/v1/identity/my-instagram`, {
       method: 'PUT',
       body: JSON.stringify({ instagram_username: instagramUsername }),
     });

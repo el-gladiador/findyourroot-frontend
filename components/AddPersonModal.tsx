@@ -23,6 +23,18 @@ interface DuplicateMatch {
 }
 
 type RelationType = 'child' | 'father' | 'none';
+type Gender = 'male' | 'female' | 'unknown';
+
+// Generate avatar based on gender
+const generateGenderAvatar = (name: string, gender: Gender): string => {
+  const encodedName = encodeURIComponent(name || 'person');
+  if (gender === 'male') {
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodedName}&backgroundColor=b6e3f4&facialHairProbability=50`;
+  } else if (gender === 'female') {
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodedName}&backgroundColor=ffdfbf&facialHairProbability=0&top=longHair,hat`;
+  }
+  return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodedName}&backgroundColor=c0aede`;
+};
 
 // Random data generators
 const firstNames = ['James', 'Mary', 'John', 'Patricia', 'Robert', 'Jennifer', 'Michael', 'Linda', 'William', 'Elizabeth', 'David', 'Barbara', 'Richard', 'Susan', 'Joseph', 'Jessica', 'Thomas', 'Sarah', 'Charles', 'Karen', 'Christopher', 'Nancy', 'Daniel', 'Lisa', 'Matthew', 'Betty', 'Anthony', 'Margaret', 'Mark', 'Sandra', 'Donald', 'Ashley', 'Steven', 'Kimberly', 'Paul', 'Emily', 'Andrew', 'Donna', 'Joshua', 'Michelle'];
@@ -53,6 +65,7 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSu
   const [linkedPersonId, setLinkedPersonId] = useState<string | undefined>(parentId);
   const [searchQuery, setSearchQuery] = useState('');
   const [showPersonPicker, setShowPersonPicker] = useState(false);
+  const [gender, setGender] = useState<Gender>('male');
 
   // Only generate random data for admins, empty form for others
   const [formData, setFormData] = useState(isAdmin ? generateRandomData() : {
@@ -128,17 +141,20 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSu
       role = `Father of ${linkedPerson.name}`;
     }
 
+    // Generate avatar based on gender if not custom
+    const avatar = formData.avatar || generateGenderAvatar(formData.name, gender);
+
     // For "child" relationship: new person is child of linkedPerson
     // For "father" relationship: linkedPerson becomes child of new person (new person is their father)
     const effectiveParentId = relationType === 'child' ? linkedPersonId : undefined;
     
-    console.log('[AddPersonModal] Creating person:', { relationType, linkedPersonId, effectiveParentId });
+    console.log('[AddPersonModal] Creating person:', { relationType, linkedPersonId, effectiveParentId, gender });
     
     const result = await addPerson({
       name: formData.name,
       role: role,
       birth: formData.birth,
-      avatar: formData.avatar,
+      avatar: avatar,
       children: relationType === 'father' && linkedPersonId ? [linkedPersonId] : [],
     }, effectiveParentId);
 
@@ -169,13 +185,16 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSu
       role = `Father of ${linkedPerson.name}`;
     }
 
+    // Generate avatar based on gender if not custom
+    const avatar = formData.avatar || generateGenderAvatar(formData.name, gender);
+
     const effectiveParentId = relationType === 'child' ? linkedPersonId : undefined;
     
     const result = await addPerson({
       name: formData.name,
       role: role,
       birth: formData.birth,
-      avatar: formData.avatar,
+      avatar: avatar,
       children: relationType === 'father' && linkedPersonId ? [linkedPersonId] : [],
     }, effectiveParentId);
 
@@ -269,6 +288,38 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSu
                 className="w-full px-3 py-2 text-sm bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white"
                 placeholder="1990"
               />
+            </div>
+
+            {/* Gender Selector */}
+            <div>
+              <label className="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-300 mb-1.5">
+                <User size={12} />
+                Gender
+              </label>
+              <div className="flex gap-1.5">
+                <button
+                  type="button"
+                  onClick={() => setGender('male')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                    gender === 'male'
+                      ? 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 border-2 border-blue-400'
+                      : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-blue-300'
+                  }`}
+                >
+                  ♂ Male
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGender('female')}
+                  className={`flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors ${
+                    gender === 'female'
+                      ? 'bg-pink-100 dark:bg-pink-900/40 text-pink-700 dark:text-pink-300 border-2 border-pink-400'
+                      : 'bg-slate-50 dark:bg-slate-900 text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-slate-700 hover:border-pink-300'
+                  }`}
+                >
+                  ♀ Female
+                </button>
+              </div>
             </div>
 
             {/* Link to Person - Minimalist Design */}
