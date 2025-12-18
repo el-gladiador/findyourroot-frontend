@@ -1,19 +1,28 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Bell, Shield, Smartphone, ChevronRight, Download, Share2, LogOut, UserPlus, Loader2, UserCheck } from 'lucide-react';
+import { Bell, ChevronRight, Download, Share2, LogOut, UserPlus, UserCheck, Wifi, WifiOff, Cloud } from 'lucide-react';
 import ExportModal from '@/components/ExportModal';
 import IdentityClaimModal from '@/components/IdentityClaimModal';
 import { useAppStore } from '@/lib/store';
 import { shareData } from '@/lib/export';
 import { ApiClient } from '@/lib/api';
 import { UserRole, getRoleLabel, getRoleDescription } from '@/lib/types';
+import { 
+  isOnline, 
+  getQueuedActions, 
+  requestNotificationPermission, 
+  getNotificationPermission,
+  showNotification 
+} from '@/lib/offline-sync';
 
 // Role hierarchy for determining upgrade options
 const ROLE_HIERARCHY: UserRole[] = ['viewer', 'contributor', 'editor', 'co-admin', 'admin'];
 
 const SettingsTab = () => {
-  const [notifications, setNotifications] = useState(true);
-  const [privacyMode, setPrivacyMode] = useState(false);
+  const [notifications, setNotifications] = useState(false);
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const [offlineAccess, setOfflineAccess] = useState(true);
+  const [onlineStatus, setOnlineStatus] = useState(true);
+  const [pendingActions, setPendingActions] = useState(0);
   const [showExportModal, setShowExportModal] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showIdentityModal, setShowIdentityModal] = useState(false);
@@ -26,6 +35,8 @@ const SettingsTab = () => {
   const familyData = useAppStore((state) => state.familyData);
   const user = useAppStore((state) => state.user);
   const logout = useAppStore((state) => state.logout);
+  
+  const isAdmin = user?.role === 'admin';
   
   // Get roles higher than current user's role
   const availableUpgrades = useMemo(() => {
@@ -42,34 +53,78 @@ const SettingsTab = () => {
     }
   }, [availableUpgrades, requestRole]);
 
-  // Load settings from localStorage
+  // Load settings from localStorage and check permissions
   useEffect(() => {
     const savedNotifications = localStorage.getItem('notifications');
-    const savedPrivacy = localStorage.getItem('privacyMode');
     const savedOffline = localStorage.getItem('offlineAccess');
     
     if (savedNotifications !== null) setNotifications(savedNotifications === 'true');
-    if (savedPrivacy !== null) setPrivacyMode(savedPrivacy === 'true');
     if (savedOffline !== null) setOfflineAccess(savedOffline === 'true');
+    
+    // Check notification permission
+    setNotificationPermission(getNotificationPermission());
+    
+    // Check online status
+    setOnlineStatus(isOnline());
+    
+    // Check pending actions
+    setPendingActions(getQueuedActions().length);
+    
+    // Listen for online/offline changes
+    const handleOnline = () => setOnlineStatus(true);
+    const handleOffline = () => setOnlineStatus(false);
+    const handleQueueUpdate = (e: CustomEvent) => setPendingActions(e.detail);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('offlineQueueUpdate', handleQueueUpdate as EventListener);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('offlineQueueUpdate', handleQueueUpdate as EventListener);
+    };
   }, []);
 
-  // Save settings to localStorage
-  const handleNotificationsToggle = () => {
-    const newValue = !notifications;
-    setNotifications(newValue);
-    localStorage.setItem('notifications', String(newValue));
-  };
-
-  const handlePrivacyToggle = () => {
-    const newValue = !privacyMode;
-    setPrivacyMode(newValue);
-    localStorage.setItem('privacyMode', String(newValue));
+  // Handle notifications toggle
+  const handleNotificationsToggle = async () => {
+    if (!notifications) {
+      // Turning on - request permission first
+      const granted = await requestNotificationPermission();
+      if (granted) {
+        setNotifications(true);
+        setNotificationPermission('granted');
+        localStorage.setItem('notifications', 'true');
+        
+        // Show test notification
+        showNotification('Notifications Enabled', {
+          body: 'You will now receive updates about your family tree.',
+        });
+      } else {
+        setNotificationPermission(getNotificationPermission());
+        // Permission denied - show message
+        alert('Please allow notifications in your browser settings to enable this feature.');
+      }
+    } else {
+      // Turning off
+      setNotifications(false);
+      localStorage.setItem('notifications', 'false');
+    }
   };
 
   const handleOfflineToggle = () => {
     const newValue = !offlineAccess;
     setOfflineAccess(newValue);
     localStorage.setItem('offlineAccess', String(newValue));
+    
+    if (newValue) {
+      // Enable offline - register service worker if not already
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js').catch(err => {
+          console.error('Service worker registration failed:', err);
+        });
+      }
+    }
   };
 
   const handleExport = async (format: 'json' | 'csv' | 'pdf') => {
@@ -129,43 +184,85 @@ const SettingsTab = () => {
   return (
     <div className="pb-32 pt-6 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="space-y-6">
+        {/* Connection Status Banner */}
+        {!onlineStatus && (
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-xl p-4 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+            <WifiOff size={20} className="text-amber-600 dark:text-amber-400 flex-shrink-0" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">You're offline</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                {pendingActions > 0 
+                  ? `${pendingActions} action${pendingActions > 1 ? 's' : ''} will sync when you're back online`
+                  : 'Changes will be saved when you reconnect'
+                }
+              </p>
+            </div>
+          </div>
+        )}
+        
+        {/* Pending Sync Banner */}
+        {onlineStatus && pendingActions > 0 && (
+          <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 flex items-center gap-3 animate-in fade-in slide-in-from-top-2">
+            <Cloud size={20} className="text-blue-600 dark:text-blue-400 flex-shrink-0 animate-pulse" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-blue-800 dark:text-blue-200">Syncing changes...</p>
+              <p className="text-xs text-blue-600 dark:text-blue-400">
+                {pendingActions} action{pendingActions > 1 ? 's' : ''} pending
+              </p>
+            </div>
+          </div>
+        )}
+
         <section>
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-2">App Settings</h3>
           <div className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 shadow-sm">
+            {/* Notifications */}
             <div className="p-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-700">
               <div className="flex items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-indigo-100 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 flex items-center justify-center">
                   <Bell size={16} />
                 </div>
-                <span className="font-medium text-slate-800 dark:text-white">Notifications</span>
+                <div>
+                  <span className="font-medium text-slate-800 dark:text-white block">Notifications</span>
+                  {notificationPermission === 'denied' && (
+                    <span className="text-xs text-amber-600 dark:text-amber-400">Blocked in browser</span>
+                  )}
+                  {notificationPermission === 'unsupported' && (
+                    <span className="text-xs text-slate-500">Not supported</span>
+                  )}
+                </div>
               </div>
               <button 
                 onClick={handleNotificationsToggle}
-                className={`w-11 h-6 rounded-full relative transition-colors ${notifications ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`}
+                disabled={notificationPermission === 'unsupported'}
+                className={`w-11 h-6 rounded-full relative transition-colors disabled:opacity-50 ${
+                  notifications && notificationPermission === 'granted'
+                    ? 'bg-indigo-500' 
+                    : 'bg-slate-200 dark:bg-slate-700'
+                }`}
               >
-                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${notifications ? 'right-1' : 'left-1'}`}></div>
+                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${
+                  notifications && notificationPermission === 'granted' ? 'right-1' : 'left-1'
+                }`}></div>
               </button>
             </div>
-            <div className="p-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-700">
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-rose-100 dark:bg-rose-900/30 text-rose-600 dark:text-rose-400 flex items-center justify-center">
-                  <Shield size={16} />
-                </div>
-                <span className="font-medium text-slate-800 dark:text-white">Privacy Mode</span>
-              </div>
-              <button 
-                onClick={handlePrivacyToggle}
-                className={`w-11 h-6 rounded-full relative transition-colors ${privacyMode ? 'bg-indigo-500' : 'bg-slate-200 dark:bg-slate-700'}`}
-              >
-                <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${privacyMode ? 'right-1' : 'left-1'}`}></div>
-              </button>
-            </div>
+            
+            {/* Offline Access */}
             <div className="p-4 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 flex items-center justify-center">
-                  <Smartphone size={16} />
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                  onlineStatus 
+                    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400'
+                    : 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400'
+                }`}>
+                  {onlineStatus ? <Wifi size={16} /> : <WifiOff size={16} />}
                 </div>
-                <span className="font-medium text-slate-800 dark:text-white">Offline Access</span>
+                <div>
+                  <span className="font-medium text-slate-800 dark:text-white block">Offline Access</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {onlineStatus ? 'Connected' : 'Offline mode active'}
+                  </span>
+                </div>
               </div>
               <button 
                 onClick={handleOfflineToggle}
@@ -177,35 +274,41 @@ const SettingsTab = () => {
           </div>
         </section>
 
-        <section>
-          <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-2">Data Management</h3>
-          <div className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 shadow-sm">
-            <button 
-              onClick={() => setShowExportModal(true)}
-              className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
-                  <Download size={16} />
+        {/* Tree Management - Admin Only */}
+        {isAdmin && (
+          <section>
+            <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-2">Tree Management</h3>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl overflow-hidden border border-slate-100 dark:border-slate-700 shadow-sm">
+              <button 
+                onClick={() => setShowExportModal(true)}
+                className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors border-b border-slate-100 dark:border-slate-700"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                    <Download size={16} />
+                  </div>
+                  <div>
+                    <span className="font-medium text-slate-800 dark:text-white block">Export Data</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Download tree as JSON, CSV, or Text</span>
+                  </div>
                 </div>
-                <span className="font-medium text-slate-800 dark:text-white">Export Data</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </button>
-            <button 
-              onClick={handleShare}
-              className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-            >
-              <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center">
-                  <Share2 size={16} />
+                <ChevronRight size={16} className="text-slate-400" />
+              </button>
+              <button 
+                onClick={handleShare}
+                className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center">
+                    <Share2 size={16} />
+                  </div>
+                  <span className="font-medium text-slate-800 dark:text-white">Share Tree</span>
                 </div>
-                <span className="font-medium text-slate-800 dark:text-white">Share Tree</span>
-              </div>
-              <ChevronRight size={16} className="text-slate-400" />
-            </button>
-          </div>
-        </section>
+                <ChevronRight size={16} className="text-slate-400" />
+              </button>
+            </div>
+          </section>
+        )}
 
         <section>
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-2">Account</h3>

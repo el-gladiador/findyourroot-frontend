@@ -50,6 +50,16 @@ const TreeTab = () => {
   const [translate, setTranslate] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   
+  // Dynamic minimum zoom based on tree size
+  const [dynamicMinZoom, setDynamicMinZoom] = useState(0.2);
+  
+  // Initial state for reset detection
+  const [initialScale, setInitialScale] = useState(1);
+  const [initialTranslate, setInitialTranslate] = useState({ x: 0, y: 0 });
+  
+  // Track if view has changed from initial state
+  const hasViewChanged = scale !== initialScale || translate.x !== initialTranslate.x || translate.y !== initialTranslate.y;
+  
   // Refs for gesture handling (avoid state updates during gestures)
   const gestureState = useRef({
     isPanning: false,
@@ -70,8 +80,7 @@ const TreeTab = () => {
     wasDragging: false, // Set true if movement exceeds threshold
   });
   
-  // Physics constants
-  const ZOOM_MIN = 0.3;
+  // Physics constants - ZOOM_MIN is now dynamic
   const ZOOM_MAX = 1.5;
   const FRICTION = 0.95;
   const MIN_VELOCITY = 0.1;
@@ -168,31 +177,13 @@ const TreeTab = () => {
   };
 
   const handleZoomOut = () => {
-    setScale(prevScale => Math.max(prevScale - 0.1, ZOOM_MIN));
+    setScale(prevScale => Math.max(prevScale - 0.1, dynamicMinZoom));
   };
 
   const handleResetZoom = () => {
-    if (!containerRef.current || !viewportRef.current) {
-      setScale(1);
-      setTranslate({ x: 0, y: 0 });
-      return;
-    }
-
-    // Get the dimensions of the tree content and viewport
-    const containerRect = containerRef.current.getBoundingClientRect();
-    const viewportRect = viewportRef.current.getBoundingClientRect();
-    
-    // Calculate the current actual size of the content (accounting for current scale)
-    const contentWidth = containerRect.width / scale;
-    const contentHeight = containerRect.height / scale;
-    
-    // Calculate scale to fit with some padding (80% of viewport)
-    const scaleX = (viewportRect.width * 0.8) / contentWidth;
-    const scaleY = (viewportRect.height * 0.8) / contentHeight;
-    const optimalScale = Math.min(Math.max(Math.min(scaleX, scaleY), ZOOM_MIN), ZOOM_MAX);
-    
-    setScale(optimalScale);
-    setTranslate({ x: 0, y: 0 });
+    // Reset to initial calculated state
+    setScale(initialScale);
+    setTranslate(initialTranslate);
   };
 
   // Focus on a specific person in the tree
@@ -232,7 +223,7 @@ const TreeTab = () => {
   const handleWheel = (e: React.WheelEvent) => {
     e.preventDefault();
     const delta = -e.deltaY / 500;
-    const newScale = Math.min(Math.max(scale + delta, ZOOM_MIN), ZOOM_MAX);
+    const newScale = Math.min(Math.max(scale + delta, dynamicMinZoom), ZOOM_MAX);
     setScale(newScale);
   };
 
@@ -435,7 +426,7 @@ const TreeTab = () => {
       
       // Calculate raw scale ratio and clamp to limits
       const scaleRatio = currentDistance / gestureState.current.pinchStartDistance;
-      const newScale = Math.min(Math.max(gestureState.current.pinchStartScale * scaleRatio, ZOOM_MIN), ZOOM_MAX);
+      const newScale = Math.min(Math.max(gestureState.current.pinchStartScale * scaleRatio, dynamicMinZoom), ZOOM_MAX);
       
       // Get viewport center for transform origin calculation
       const viewportRect = viewportRef.current?.getBoundingClientRect();
@@ -707,6 +698,50 @@ const TreeTab = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, [calculateLines]);
 
+  // Track if initial view has been set
+  const hasInitializedView = useRef(false);
+
+  // Calculate dynamic minimum zoom based on tree size
+  useEffect(() => {
+    const calculateMinZoom = () => {
+      if (!containerRef.current || !viewportRef.current || familyData.length === 0) {
+        return;
+      }
+      
+      const containerRect = containerRef.current.getBoundingClientRect();
+      const viewportRect = viewportRef.current.getBoundingClientRect();
+      
+      // Get the unscaled tree dimensions (use current scale state via ref)
+      const currentScale = gestureState.current.currentScale || 1;
+      const treeWidth = containerRect.width / currentScale;
+      const treeHeight = containerRect.height / currentScale;
+      
+      // Calculate minimum zoom to fit tree with padding (90% of viewport)
+      const minZoomX = (viewportRect.width * 0.9) / treeWidth;
+      const minZoomY = (viewportRect.height * 0.9) / treeHeight;
+      const calculatedMinZoom = Math.min(minZoomX, minZoomY);
+      
+      // Clamp between absolute minimum (0.1) and 1
+      const newMinZoom = Math.max(0.1, Math.min(calculatedMinZoom, 1));
+      
+      setDynamicMinZoom(newMinZoom);
+      
+      // Only set initial state once when tree first loads
+      if (!hasInitializedView.current) {
+        hasInitializedView.current = true;
+        const optimalScale = Math.min(Math.max(calculatedMinZoom, newMinZoom), ZOOM_MAX);
+        setInitialScale(optimalScale);
+        setInitialTranslate({ x: 0, y: 0 });
+        setScale(optimalScale);
+        setTranslate({ x: 0, y: 0 });
+      }
+    };
+    
+    // Wait for tree to render
+    const timer = setTimeout(calculateMinZoom, 300);
+    return () => clearTimeout(timer);
+  }, [familyData.length, nodesRendered, ZOOM_MAX]);
+
   // Cleanup RAF on unmount
   useEffect(() => {
     return () => {
@@ -868,13 +903,16 @@ const TreeTab = () => {
         >
           <ZoomOut size={20} />
         </button>
-        <button
-          onClick={handleResetZoom}
-          className="w-10 h-10 bg-white dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center active:scale-95"
-          title="Reset zoom"
-        >
-          <Maximize2 size={20} />
-        </button>
+        {/* Reset button - only show when view has changed */}
+        {hasViewChanged && (
+          <button
+            onClick={handleResetZoom}
+            className="w-10 h-10 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center active:scale-95 animate-in fade-in zoom-in-95"
+            title="Reset view"
+          >
+            <Maximize2 size={20} />
+          </button>
+        )}
         <div className="text-center text-xs font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-lg px-2 py-1 shadow-md">
           {Math.round(scale * 100)}%
         </div>
