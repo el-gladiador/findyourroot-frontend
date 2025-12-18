@@ -26,6 +26,7 @@ export default function App() {
   const isAuthenticated = useAppStore((state) => state.isAuthenticated);
   const validateAuth = useAppStore((state) => state.validateAuth);
   const settings = useAppStore((state) => state.settings);
+  const user = useAppStore((state) => state.user);
   
   // Enable real-time sync (Firestore listeners or polling)
   useRealtimeSync();
@@ -126,7 +127,7 @@ export default function App() {
     switch(activeTab) {
       case 'home': return 'The Pendelton Line';
       case 'search': return 'Find Relative';
-      case 'admin': return 'Admin Panel';
+      case 'admin': return user?.role === 'admin' ? 'Admin Panel' : 'Review Panel';
       case 'config': return 'Configuration';
       case 'about': return 'About Creator';
       default: return 'App';

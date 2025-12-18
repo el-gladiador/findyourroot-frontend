@@ -10,10 +10,12 @@ interface BottomNavigationProps {
 const BottomNavigation: React.FC<BottomNavigationProps> = ({ activeTab, setActiveTab }) => {
   const user = useAppStore((state) => state.user);
   const isAdmin = user?.role === 'admin';
+  const isCoAdmin = user?.role === 'co-admin';
+  const showAdminTab = isAdmin || isCoAdmin;
   
   const tabs = [
     { id: 'home', icon: TreeDeciduous, label: 'Tree' },
-    ...(isAdmin ? [{ id: 'admin', icon: Shield, label: 'Admin' }] : []),
+    ...(showAdminTab ? [{ id: 'admin', icon: Shield, label: isAdmin ? 'Admin' : 'Review' }] : []),
     { id: 'config', icon: Settings, label: 'Settings' },
     { id: 'about', icon: Info, label: 'About' }
   ];

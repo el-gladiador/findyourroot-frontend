@@ -769,55 +769,56 @@ const AdminTab = () => {
                     </div>
                   </div>
                   
-                  {/* Actions row */}
-                  {u.email !== user?.email && (
-                    <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
-                      {/* Link/Unlink button */}
-                      {!u.person_id ? (
-                        <button
-                          onClick={() => { setLinkUserId(u.id); setShowLinkModal(true); }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
-                        >
-                          <Link2 size={14} />
-                          Link
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            if (confirm(`Unlink ${u.email} from ${linkedPerson?.name || 'tree node'}?`)) {
-                              ApiClient.unlinkIdentity(u.id).then(() => fetchUsers());
-                            }
-                          }}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200 dark:hover:bg-purple-900/40 rounded-lg transition-colors"
-                        >
-                          <Link2 size={14} />
-                          Unlink
-                        </button>
-                      )}
+                  {/* Actions row - show for all users including self */}
+                  <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 flex-wrap">
+                    {/* Link/Unlink button */}
+                    {!u.person_id ? (
                       <button
-                        onClick={() => { setSelectedUser(u); setShowRoleModal(true); }}
-                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
+                        onClick={() => { setLinkUserId(u.id); setShowLinkModal(true); }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
                       >
-                        <Edit3 size={14} />
-                        Role
+                        <Link2 size={14} />
+                        Link
                       </button>
-                      {u.role !== 'viewer' && (
+                    ) : (
+                      <button
+                        onClick={() => {
+                          if (confirm(`Unlink ${u.email} from ${linkedPerson?.name || 'tree node'}?`)) {
+                            ApiClient.unlinkIdentity(u.id).then(() => fetchUsers());
+                          }
+                        }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-100 dark:bg-purple-900/30 hover:bg-purple-200 dark:hover:bg-purple-900/40 rounded-lg transition-colors"
+                      >
+                        <Link2 size={14} />
+                        Unlink
+                      </button>
+                    )}
+                    {/* Only show role/revoke buttons for other users */}
+                    {u.email !== user?.email && (
+                      <>
                         <button
-                          onClick={() => handleRevokeAccess(u.id)}
-                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                          onClick={() => { setSelectedUser(u); setShowRoleModal(true); }}
+                          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 rounded-lg transition-colors"
                         >
-                          <UserMinus size={14} />
-                          Revoke
+                          <Edit3 size={14} />
+                          Role
                         </button>
-                      )}
-                    </div>
-                  )}
-                  
-                  {u.email === user?.email && (
-                    <div className="mt-3 pt-3 border-t border-slate-100 dark:border-slate-700">
-                      <span className="text-xs text-slate-400 italic">This is you</span>
-                    </div>
-                  )}
+                        {u.role !== 'viewer' && (
+                          <button
+                            onClick={() => handleRevokeAccess(u.id)}
+                            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-lg transition-colors"
+                          >
+                            <UserMinus size={14} />
+                            Revoke
+                          </button>
+                        )}
+                      </>
+                    )}
+                    {/* "This is you" label */}
+                    {u.email === user?.email && (
+                      <span className="text-xs text-slate-400 italic ml-auto">This is you</span>
+                    )}
+                  </div>
                 </div>
               )})
             )}
