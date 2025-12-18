@@ -127,7 +127,7 @@ const SettingsTab = () => {
   };
 
   return (
-    <div className="pb-24 pt-6 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
+    <div className="pb-32 pt-6 px-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="space-y-6">
         <section>
           <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3 px-2">App Settings</h3>

@@ -770,7 +770,7 @@ const TreeTab = () => {
 
   if (rootNodes.length === 0) {
     return (
-      <div className="pb-24 pt-8 px-4 min-h-screen flex items-center justify-center bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]">
+      <div className="pb-32 pt-8 px-4 min-h-screen flex items-center justify-center bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] dark:bg-[radial-gradient(#1e293b_1px,transparent_1px)] [background-size:16px_16px]">
         <div className="text-center">
           <p className="text-slate-600 dark:text-slate-400 mb-4">No family members yet</p>
           <button

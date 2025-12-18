@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { 
   Users, CheckCircle, XCircle, Clock, Mail, MessageSquare, 
   UserCheck, Link2, Shield, UserMinus,
@@ -9,7 +9,7 @@ import {
 import { ApiClient } from '@/lib/api';
 import { 
   PermissionRequest, IdentityClaimRequest, Suggestion, UserListItem, UserRole, Person,
-  getRoleLabel, getRoleDescription, canApprove, GroupedSuggestion
+  getRoleLabel, getRoleDescription, canApprove
 } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
 import { useRealtimeAdminSync, useAdminPendingCounts } from '@/lib/realtime-sync';
@@ -30,14 +30,6 @@ const AdminTab = () => {
   const [filter, setFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [claimFilter, setClaimFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
   const [suggestionFilter, setSuggestionFilter] = useState<'pending' | 'approved' | 'rejected'>('pending');
-  
-  // View mode for suggestions: individual or grouped
-  const [suggestionViewMode, setSuggestionViewMode] = useState<'individual' | 'grouped'>('grouped');
-  
-  // Grouped suggestions state
-  const [groupedSuggestions, setGroupedSuggestions] = useState<GroupedSuggestion[]>([]);
-  const [isLoadingGrouped, setIsLoadingGrouped] = useState(false);
-  const [groupStats, setGroupStats] = useState({ total: 0, groups: 0 });
   
   // Real-time sync for suggestions
   const { 
@@ -182,57 +174,33 @@ const AdminTab = () => {
     }
   };
 
-  // Fetch grouped suggestions
-  const fetchGroupedSuggestions = useCallback(async () => {
-    setIsLoadingGrouped(true);
-    try {
-      const response = await ApiClient.getGroupedSuggestions(suggestionFilter);
-      if (response.data) {
-        setGroupedSuggestions(response.data.groups || []);
-        setGroupStats({ 
-          total: response.data.total_count || 0, 
-          groups: response.data.group_count || 0 
-        });
+  // Auto-group suggestions by target_person_id + type
+  const groupedSuggestionsList = useMemo(() => {
+    const groups = new Map<string, Suggestion[]>();
+    
+    (realtimeSuggestions as Suggestion[]).forEach((s) => {
+      const key = `${s.type}-${s.target_person_id || 'new'}`;
+      if (!groups.has(key)) {
+        groups.set(key, []);
       }
-    } catch (error) {
-      console.error('Failed to fetch grouped suggestions:', error);
-    } finally {
-      setIsLoadingGrouped(false);
-    }
-  }, [suggestionFilter]);
-
-  // Fetch grouped suggestions when view mode changes or filter changes
-  useEffect(() => {
-    if (suggestionViewMode === 'grouped' && activeTab === 'suggestions') {
-      fetchGroupedSuggestions();
-    }
-  }, [suggestionViewMode, suggestionFilter, activeTab, fetchGroupedSuggestions]);
-
-  // Refresh grouped suggestions when real-time data changes
-  useEffect(() => {
-    if (suggestionViewMode === 'grouped' && activeTab === 'suggestions' && realtimeSuggestions.length > 0) {
-      fetchGroupedSuggestions();
-    }
-  }, [realtimeSuggestions.length, suggestionViewMode, activeTab, fetchGroupedSuggestions]);
+      groups.get(key)!.push(s);
+    });
+    
+    return Array.from(groups.values());
+  }, [realtimeSuggestions]);
 
   // Batch approve/reject handlers
   const handleBatchApprove = async (suggestionIds: string[], groupInfo: string) => {
     const count = suggestionIds.length;
     if (confirm(`Approve ${count} suggestion${count > 1 ? 's' : ''} (${groupInfo})? Changes will be applied to the tree.`)) {
-      const response = await ApiClient.batchReviewSuggestions(suggestionIds, true);
-      if (!response.error) {
-        fetchGroupedSuggestions();
-      }
+      await ApiClient.batchReviewSuggestions(suggestionIds, true);
     }
   };
 
   const handleBatchReject = async (suggestionIds: string[], groupInfo: string) => {
     const count = suggestionIds.length;
     if (confirm(`Reject ${count} suggestion${count > 1 ? 's' : ''} (${groupInfo})?`)) {
-      const response = await ApiClient.batchReviewSuggestions(suggestionIds, false);
-      if (!response.error) {
-        fetchGroupedSuggestions();
-      }
+      await ApiClient.batchReviewSuggestions(suggestionIds, false);
     }
   };
 
@@ -351,7 +319,7 @@ const AdminTab = () => {
   const rolesList: UserRole[] = ['viewer', 'contributor', 'editor', 'co-admin', 'admin'];
 
   return (
-    <div className="pb-24 pt-4 px-4">
+    <div className="pb-32 pt-4 px-4">
       {/* Compact header with live indicator */}
       <div className="mb-4 flex items-center justify-between">
         <h2 className="text-xl font-bold text-slate-800 dark:text-white">
@@ -446,232 +414,136 @@ const AdminTab = () => {
       {/* Suggestions Tab */}
       {activeTab === 'suggestions' && canReviewSuggestions && (
         <>
-          {/* Controls row: view mode + status filter */}
-          <div className="flex items-center gap-2 mb-4 flex-wrap">
-            {/* View Mode */}
-            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5">
-              <button
-                onClick={() => setSuggestionViewMode('grouped')}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                  suggestionViewMode === 'grouped'
-                    ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
-                    : 'text-slate-500 dark:text-slate-400'
-                }`}
-              >
-                Grouped
-              </button>
-              <button
-                onClick={() => setSuggestionViewMode('individual')}
-                className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                  suggestionViewMode === 'individual'
-                    ? 'bg-white dark:bg-slate-700 text-slate-800 dark:text-white shadow-sm'
-                    : 'text-slate-500 dark:text-slate-400'
-                }`}
-              >
-                Individual
-              </button>
-            </div>
-
-            {/* Status Filter */}
-            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 flex-1 min-w-0">
-              <button
-                onClick={() => setSuggestionFilter('pending')}
-                className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                  suggestionFilter === 'pending'
-                    ? 'bg-yellow-500 text-white'
-                    : 'text-slate-500 dark:text-slate-400'
-                }`}
-              >
-                Pending
-              </button>
-              <button
-                onClick={() => setSuggestionFilter('approved')}
-                className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                  suggestionFilter === 'approved'
-                    ? 'bg-green-500 text-white'
-                    : 'text-slate-500 dark:text-slate-400'
-                }`}
-              >
-                Approved
-              </button>
-              <button
-                onClick={() => setSuggestionFilter('rejected')}
-                className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                  suggestionFilter === 'rejected'
-                    ? 'bg-red-500 text-white'
-                    : 'text-slate-500 dark:text-slate-400'
-                }`}
-              >
-                Rejected
-              </button>
-            </div>
+          {/* Status Filter only - no view mode toggle */}
+          <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 mb-4">
+            <button
+              onClick={() => setSuggestionFilter('pending')}
+              className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                suggestionFilter === 'pending'
+                  ? 'bg-yellow-500 text-white'
+                  : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              Pending
+            </button>
+            <button
+              onClick={() => setSuggestionFilter('approved')}
+              className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                suggestionFilter === 'approved'
+                  ? 'bg-green-500 text-white'
+                  : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              Approved
+            </button>
+            <button
+              onClick={() => setSuggestionFilter('rejected')}
+              className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                suggestionFilter === 'rejected'
+                  ? 'bg-red-500 text-white'
+                  : 'text-slate-500 dark:text-slate-400'
+              }`}
+            >
+              Rejected
+            </button>
           </div>
 
-          {/* Grouped View */}
-          {suggestionViewMode === 'grouped' && (
-            <div className="space-y-3">
-              {isLoadingGrouped ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                </div>
-              ) : groupedSuggestions.length === 0 ? (
-                <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
-                  <Edit3 size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
-                  <p className="text-sm text-slate-500 dark:text-slate-400">No {suggestionFilter} suggestions</p>
-                </div>
-              ) : (
-                groupedSuggestions.map((group) => (
+          {/* Auto-grouped suggestions list */}
+          <div className="space-y-3">
+            {isLoadingRealtimeSuggestions ? (
+              <div className="flex justify-center py-8">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+              </div>
+            ) : groupedSuggestionsList.length === 0 ? (
+              <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
+                <Edit3 size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
+                <p className="text-sm text-slate-500 dark:text-slate-400">No {suggestionFilter} suggestions</p>
+              </div>
+            ) : (
+              groupedSuggestionsList.map((group) => {
+                const first = group[0];
+                const isGrouped = group.length > 1;
+                const allIds = group.map(s => s.id);
+                const allEmails = [...new Set(group.map(s => s.user_email))];
+                
+                return (
                   <div
-                    key={group.group_id}
-                    className={`bg-white dark:bg-slate-800 rounded-lg border ${
-                      group.has_conflicts 
-                        ? 'border-orange-300 dark:border-orange-700' 
-                        : 'border-slate-200 dark:border-slate-700'
-                    } p-3`}
+                    key={`${first.type}-${first.target_person_id || first.id}`}
+                    className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3"
                   >
-                    {/* Compact header */}
+                    {/* Header */}
                     <div className="flex items-center gap-2 mb-2">
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium uppercase ${getSuggestionTypeBadge(group.type)}`}>
-                        {group.type}
+                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium uppercase ${getSuggestionTypeBadge(first.type)}`}>
+                        {first.type}
                       </span>
-                      {group.count > 1 && (
+                      {isGrouped && (
                         <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-[10px] font-medium">
-                          {group.count} votes
+                          {group.length} votes
                         </span>
                       )}
-                      {group.has_conflicts && (
-                        <span className="px-1.5 py-0.5 bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400 rounded text-[10px] font-medium">
-                          Conflict
-                        </span>
-                      )}
-                      <span className="text-[10px] text-slate-400 ml-auto">{formatDate(group.first_created_at)}</span>
+                      <span className="text-[10px] text-slate-400 ml-auto">{formatDate(first.created_at)}</span>
                     </div>
 
                     {/* Content */}
                     <div className="mb-2">
-                      {group.type === 'add' && group.person_data && (
+                      {first.type === 'add' && first.person_data && (
                         <p className="text-sm text-slate-700 dark:text-slate-200">
-                          Add <span className="font-medium">{group.person_data.name}</span>
-                          <span className="text-slate-400 text-xs"> • {group.person_data.role}</span>
+                          Add <span className="font-medium">{first.person_data.name}</span>
+                          <span className="text-slate-400 text-xs"> • {first.person_data.role}</span>
                         </p>
                       )}
-                      {group.type === 'edit' && group.target_person && (
+                      {first.type === 'edit' && first.target_person && (
                         <p className="text-sm text-slate-700 dark:text-slate-200">
-                          Edit <span className="font-medium">{group.target_person.name}</span>
+                          Edit <span className="font-medium">{first.target_person.name}</span>
                         </p>
                       )}
-                      {group.type === 'delete' && group.target_person && (
+                      {first.type === 'delete' && first.target_person && (
                         <p className="text-sm text-red-600 dark:text-red-400">
-                          Delete <span className="font-medium">{group.target_person.name}</span>
+                          Delete <span className="font-medium">{first.target_person.name}</span>
                         </p>
                       )}
                     </div>
 
-                    {/* Contributors - simplified */}
+                    {/* Contributors */}
                     <p className="text-[10px] text-slate-400 mb-2">
-                      by {group.user_emails.slice(0, 2).join(', ')}
-                      {group.user_emails.length > 2 && ` +${group.user_emails.length - 2}`}
+                      by {allEmails.slice(0, 2).join(', ')}
+                      {allEmails.length > 2 && ` +${allEmails.length - 2}`}
                     </p>
 
                     {/* Actions */}
                     {suggestionFilter === 'pending' && (
                       <div className="flex gap-2">
-                        <button
-                          onClick={() => handleBatchApprove(
-                            group.suggestion_ids, 
-                            `${group.type} - ${group.target_person?.name || group.person_data?.name || 'unknown'}`
-                          )}
-                          className="flex-1 px-2 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded-md transition-colors"
-                        >
-                          ✓ Approve
-                        </button>
-                        <button
-                          onClick={() => handleBatchReject(
-                            group.suggestion_ids,
-                            `${group.type} - ${group.target_person?.name || group.person_data?.name || 'unknown'}`
-                          )}
-                          className="flex-1 px-2 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-xs rounded-md transition-colors"
-                        >
-                          ✗ Reject
-                        </button>
-                      </div>
-                    )}
-
-                    {suggestionFilter !== 'pending' && (
-                      <span className={`text-xs ${suggestionFilter === 'approved' ? 'text-green-600' : 'text-red-500'}`}>
-                        {suggestionFilter === 'approved' ? '✓ Approved' : '✗ Rejected'}
-                      </span>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          )}
-
-          {/* Individual View */}
-          {suggestionViewMode === 'individual' && (
-            <div className="space-y-3">
-              {isLoadingRealtimeSuggestions ? (
-                <div className="flex justify-center py-8">
-                  <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
-                </div>
-              ) : realtimeSuggestions.length === 0 ? (
-                <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
-                  <Edit3 size={32} className="mx-auto text-slate-300 dark:text-slate-600 mb-2" />
-                  <p className="text-sm text-slate-500 dark:text-slate-400">No {suggestionFilter} suggestions</p>
-                </div>
-              ) : (
-                realtimeSuggestions.map((suggestion) => (
-                  <div
-                    key={suggestion.id}
-                    className="bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700 p-3"
-                  >
-                    {/* Compact header */}
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium uppercase ${getSuggestionTypeBadge(suggestion.type)}`}>
-                        {suggestion.type}
-                      </span>
-                      <span className="text-[10px] text-slate-400 ml-auto">{formatDate(suggestion.created_at)}</span>
-                    </div>
-
-                    {/* Content */}
-                    <div className="mb-2">
-                      {suggestion.type === 'add' && suggestion.person_data && (
-                        <p className="text-sm text-slate-700 dark:text-slate-200">
-                          Add <span className="font-medium">{suggestion.person_data.name}</span>
-                          <span className="text-slate-400 text-xs"> • {suggestion.person_data.role}</span>
-                        </p>
-                      )}
-                      {suggestion.type === 'edit' && suggestion.target_person && (
-                        <p className="text-sm text-slate-700 dark:text-slate-200">
-                          Edit <span className="font-medium">{suggestion.target_person.name}</span>
-                        </p>
-                      )}
-                      {suggestion.type === 'delete' && suggestion.target_person && (
-                        <p className="text-sm text-red-600 dark:text-red-400">
-                          Delete <span className="font-medium">{suggestion.target_person.name}</span>
-                        </p>
-                      )}
-                    </div>
-
-                    {/* Contributor */}
-                    <p className="text-[10px] text-slate-400 mb-2">by {suggestion.user_email}</p>
-
-                    {/* Actions */}
-                    {suggestionFilter === 'pending' && (
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => handleApproveSuggestion(suggestion.id)}
-                          className="flex-1 px-2 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded-md transition-colors"
-                        >
-                          ✓ Approve
-                        </button>
-                        <button
-                          onClick={() => handleRejectSuggestion(suggestion.id)}
-                          className="flex-1 px-2 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-xs rounded-md transition-colors"
-                        >
-                          ✗ Reject
-                        </button>
+                        {isGrouped ? (
+                          <>
+                            <button
+                              onClick={() => handleBatchApprove(allIds, `${first.type} - ${first.target_person?.name || first.person_data?.name || 'new'}`)}
+                              className="flex-1 px-2 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded-md transition-colors"
+                            >
+                              ✓ Approve All
+                            </button>
+                            <button
+                              onClick={() => handleBatchReject(allIds, `${first.type} - ${first.target_person?.name || first.person_data?.name || 'new'}`)}
+                              className="flex-1 px-2 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-xs rounded-md transition-colors"
+                            >
+                              ✗ Reject All
+                            </button>
+                          </>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => handleApproveSuggestion(first.id)}
+                              className="flex-1 px-2 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded-md transition-colors"
+                            >
+                              ✓ Approve
+                            </button>
+                            <button
+                              onClick={() => handleRejectSuggestion(first.id)}
+                              className="flex-1 px-2 py-1.5 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-600 dark:text-slate-300 text-xs rounded-md transition-colors"
+                            >
+                              ✗ Reject
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
 
@@ -680,16 +552,16 @@ const AdminTab = () => {
                         suggestionFilter === 'approved' ? 'text-green-600' : 'text-red-500'
                       }`}>
                         {suggestionFilter === 'approved' ? '✓ Approved' : '✗ Rejected'}
-                          {suggestion.reviewer_email && (
-                            <p className="text-xs mt-1 opacity-75">by {suggestion.reviewer_email}</p>
-                          )}
+                        {first.reviewer_email && (
+                          <span className="text-xs opacity-75 ml-1">by {first.reviewer_email}</span>
+                        )}
                       </span>
                     )}
                   </div>
-                ))
-              )}
-            </div>
-          )}
+                );
+              })
+            )}
+          </div>
         </>
       )}
 

@@ -3,7 +3,7 @@ import { Info, Github, Twitter, Linkedin } from 'lucide-react';
 import { CREATOR_INFO } from '@/lib/data';
 
 const AboutTab = () => (
-  <div className="pb-24 pt-8 px-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+  <div className="pb-32 pt-8 px-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
     <div className="flex flex-col items-center mb-8">
       <div className="w-24 h-24 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-600 p-1 mb-4 shadow-xl shadow-indigo-500/30">
         <div className="w-full h-full rounded-full bg-white dark:bg-slate-900 flex items-center justify-center overflow-hidden">
