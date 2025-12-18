@@ -101,6 +101,7 @@ const TopBar: React.FC<TopBarProps> = ({ title, rightAction, showSearch = false 
             <input
               ref={inputRef}
               type="text"
+              dir="auto"
               placeholder="Search family member..."
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}

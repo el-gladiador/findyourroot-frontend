@@ -89,6 +89,7 @@ const EditPersonModal: React.FC<EditPersonModalProps> = ({ person, onClose, onSu
             <input
               type="text"
               required
+              dir="auto"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white"
@@ -104,6 +105,7 @@ const EditPersonModal: React.FC<EditPersonModalProps> = ({ person, onClose, onSu
             <input
               type="text"
               required
+              dir="auto"
               value={formData.role}
               onChange={(e) => setFormData({ ...formData, role: e.target.value })}
               className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white"

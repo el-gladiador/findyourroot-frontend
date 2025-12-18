@@ -230,6 +230,7 @@ const IdentityClaimModal: React.FC<IdentityClaimModalProps> = ({ onClose }) => {
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
                 <input 
                   type="text" 
+                  dir="auto"
                   placeholder="Search by name, role, or location..." 
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
@@ -310,6 +311,7 @@ const IdentityClaimModal: React.FC<IdentityClaimModalProps> = ({ onClose }) => {
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
                       rows={3}
+                      dir="auto"
                       placeholder="e.g., I am the son of X and was born in Y..."
                       className="w-full px-4 py-3 bg-slate-100 dark:bg-slate-900 rounded-xl border-none focus:ring-2 focus:ring-purple-500 text-slate-900 dark:text-white placeholder-slate-400 transition-all outline-none resize-none"
                     />

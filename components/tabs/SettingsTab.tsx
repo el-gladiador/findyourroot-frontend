@@ -361,6 +361,7 @@ const SettingsTab = () => {
                         onChange={(e) => setRequestMessage(e.target.value)}
                         placeholder="Why do you need this permission?"
                         rows={3}
+                        dir="auto"
                         className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 rounded-lg bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-2 focus:ring-indigo-500 focus:border-transparent resize-none"
                       />
                     </div>

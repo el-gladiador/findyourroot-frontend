@@ -76,6 +76,7 @@ const SearchTab = () => {
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
           <input 
             type="text" 
+            dir="auto"
             placeholder="Search family member..." 
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}

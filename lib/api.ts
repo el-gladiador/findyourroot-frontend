@@ -296,14 +296,14 @@ export class ApiClient {
     });
   }
 
-  // Check for duplicate names
+  // Check for duplicate names using phonetic matching for Persian names
   static async checkDuplicateName(name: string, threshold: number = 0.8): Promise<ApiResponse<{
     has_duplicates: boolean;
     matches: Array<{
       person_id: string;
       name: string;
       similarity: number;
-      match_type: string;
+      match_type: string; // "exact", "normalized", "phonetic", "similar"
     }>;
     input_name: string;
     normalized: string;

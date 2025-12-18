@@ -157,6 +157,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
                     name="fatherName"
                     type="text"
                     required
+                    dir="auto"
                     value={fatherName}
                     onChange={(e) => setFatherName(e.target.value)}
                     className="appearance-none relative block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 transition-colors"
