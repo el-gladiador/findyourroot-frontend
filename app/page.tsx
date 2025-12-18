@@ -97,20 +97,6 @@ export default function App() {
     return () => mediaQuery.removeEventListener('change', handler);
   }, [settings.theme]);
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyPress = (e: KeyboardEvent) => {
-      // Tab switching with number keys (1-4)
-      if (e.key >= '1' && e.key <= '4') {
-        const tabs = ['home', 'admin', 'config', 'about'];
-        setActiveTab(tabs[parseInt(e.key) - 1]);
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyPress);
-    return () => window.removeEventListener('keydown', handleKeyPress);
-  }, []);
-
   // Render logic
   const renderContent = () => {
     switch(activeTab) {
