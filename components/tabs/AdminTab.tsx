@@ -1004,8 +1004,8 @@ const AdminTab = () => {
                   
                   {/* Actions row - show for all users including self */}
                   <div className="flex items-center gap-2 mt-3 pt-3 border-t border-slate-100 dark:border-slate-700 flex-wrap">
-                    {/* Link/Unlink button */}
-                    {!u.person_id ? (
+                    {/* Link/Unlink button - check linkedPerson exists, not just person_id (handles deleted persons) */}
+                    {!linkedPerson ? (
                       <button
                         onClick={() => { setLinkUserId(u.id); setShowLinkModal(true); }}
                         className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-purple-600 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded-lg transition-colors"
