@@ -126,7 +126,7 @@ export interface CreatorInfo {
   role: string;
   bio: string;
   socials: {
-    twitter: string;
+    instagram: string;
     github: string;
     linkedin: string;
   };
