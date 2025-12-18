@@ -87,14 +87,53 @@ export const useRealtimeAdminSync = (
   // Check if user can view admin data
   const canViewAdminData = user?.role === 'admin' || user?.role === 'co-admin';
 
+  // For non-pending filters, use REST API instead of SSE
   useEffect(() => {
     if (!isAuthenticated || !canViewAdminData || !token) {
       setData([]);
       setIsLoading(false);
-      setIsConnected(false);
       return;
     }
 
+    // If filter is not pending, fetch via REST API
+    if (statusFilter !== 'pending') {
+      const fetchData = async () => {
+        setIsLoading(true);
+        try {
+          let endpoint = '';
+          if (collectionName === 'suggestions') {
+            endpoint = `/api/v1/admin/suggestions?status=${statusFilter}`;
+          } else if (collectionName === 'permission_requests') {
+            endpoint = `/api/v1/admin/permission-requests?status=${statusFilter}`;
+          } else if (collectionName === 'identity_claims') {
+            endpoint = `/api/v1/admin/identity-claims?status=${statusFilter}`;
+          }
+          
+          const response = await fetch(`${API_URL}${endpoint}`, {
+            headers: { Authorization: `Bearer ${token}` }
+          });
+          
+          if (response.ok) {
+            const items = await response.json();
+            // Sort by created_at descending
+            items.sort((a: any, b: any) => {
+              const timeA = a.created_at?.seconds || new Date(a.created_at).getTime() || 0;
+              const timeB = b.created_at?.seconds || new Date(b.created_at).getTime() || 0;
+              return timeB - timeA;
+            });
+            setData(items);
+          }
+        } catch (error) {
+          console.error(`[Admin REST] Error fetching ${collectionName}:`, error);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+      fetchData();
+      return;
+    }
+
+    // For pending status, use SSE for real-time updates
     const connectSSE = () => {
       console.log(`[Admin SSE] Connecting to SSE stream...`);
       setIsLoading(true);
