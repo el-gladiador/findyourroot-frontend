@@ -16,6 +16,7 @@ import LoginPage from '@/components/LoginPage';
 import { useToast } from '@/lib/hooks';
 import { useAppStore } from '@/lib/store';
 import { useRealtimeSync } from '@/lib/realtime-sync';
+import { I18nProvider } from '@/lib/i18n';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -128,15 +129,15 @@ export default function App() {
   // Show login page if not authenticated
   if (!isAuthenticated) {
     return (
-      <>
+      <I18nProvider>
         <LoginPage onSuccess={() => showToast({ type: 'success', message: 'Welcome back!' })} />
         {toast && <Toast {...toast} onClose={hideToast} />}
-      </>
+      </I18nProvider>
     );
   }
 
   return (
-    <>
+    <I18nProvider>
       {isLoading && <SplashScreen />}
       
       <div className="min-h-screen transition-colors duration-300 bg-slate-50 dark:bg-slate-950" style={{ minHeight: '-webkit-fill-available' }}>
@@ -166,6 +167,6 @@ export default function App() {
         <UpdatePrompt />
         <InstallPrompt />
       </div>
-    </>
+    </I18nProvider>
   );
 }

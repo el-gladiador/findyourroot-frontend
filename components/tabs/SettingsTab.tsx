@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { Bell, ChevronRight, Download, Share2, LogOut, UserPlus, UserCheck, Wifi, WifiOff, Cloud } from 'lucide-react';
+import { Bell, ChevronRight, Download, Share2, LogOut, UserPlus, UserCheck, Wifi, WifiOff, Cloud, Globe } from 'lucide-react';
 import ExportModal from '@/components/ExportModal';
 import IdentityClaimModal from '@/components/IdentityClaimModal';
 import { useAppStore } from '@/lib/store';
@@ -13,11 +13,13 @@ import {
   getNotificationPermission,
   showNotification 
 } from '@/lib/offline-sync';
+import { useI18n, LANGUAGES, Language } from '@/lib/i18n';
 
 // Role hierarchy for determining upgrade options
 const ROLE_HIERARCHY: UserRole[] = ['viewer', 'contributor', 'editor', 'co-admin', 'admin'];
 
 const SettingsTab = () => {
+  const { t, language, setLanguage } = useI18n();
   const [notifications, setNotifications] = useState(false);
   const [notificationPermission, setNotificationPermission] = useState<NotificationPermission | 'unsupported'>('default');
   const [offlineAccess, setOfflineAccess] = useState(true);
@@ -26,6 +28,7 @@ const SettingsTab = () => {
   const [showExportModal, setShowExportModal] = useState(false);
   const [showRequestModal, setShowRequestModal] = useState(false);
   const [showIdentityModal, setShowIdentityModal] = useState(false);
+  const [showLanguageModal, setShowLanguageModal] = useState(false);
   const [requestMessage, setRequestMessage] = useState('');
   const [requestRole, setRequestRole] = useState<UserRole>('contributor');
   const [requestStatus, setRequestStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle');
@@ -257,7 +260,7 @@ const SettingsTab = () => {
             </div>
             
             {/* Offline Access */}
-            <div className="p-4 flex items-center justify-between">
+            <div className="p-4 flex items-center justify-between border-b border-slate-100 dark:border-slate-700">
               <div className="flex items-center gap-3">
                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
                   onlineStatus 
@@ -267,9 +270,9 @@ const SettingsTab = () => {
                   {onlineStatus ? <Wifi size={16} /> : <WifiOff size={16} />}
                 </div>
                 <div>
-                  <span className="font-medium text-slate-800 dark:text-white block">Offline Access</span>
+                  <span className="font-medium text-slate-800 dark:text-white block">{t('settings.offlineAccess')}</span>
                   <span className="text-xs text-slate-500 dark:text-slate-400">
-                    {onlineStatus ? 'Connected' : 'Offline mode active'}
+                    {onlineStatus ? t('settings.connected') : t('settings.offlineModeActive')}
                   </span>
                 </div>
               </div>
@@ -280,6 +283,25 @@ const SettingsTab = () => {
                 <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${offlineAccess ? 'right-1' : 'left-1'}`}></div>
               </button>
             </div>
+            
+            {/* Language */}
+            <button 
+              onClick={() => setShowLanguageModal(true)}
+              className="w-full p-4 flex items-center justify-between text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-400 flex items-center justify-center">
+                  <Globe size={16} />
+                </div>
+                <div>
+                  <span className="font-medium text-slate-800 dark:text-white block">{t('settings.language')}</span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">
+                    {LANGUAGES[language].nativeName}
+                  </span>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-slate-400" />
+            </button>
           </div>
         </section>
 
@@ -527,6 +549,66 @@ const SettingsTab = () => {
         {/* Identity Claim Modal */}
         {showIdentityModal && (
           <IdentityClaimModal onClose={() => setShowIdentityModal(false)} />
+        )}
+
+        {/* Language Selection Modal */}
+        {showLanguageModal && (
+          <div 
+            className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in duration-300"
+            onClick={() => setShowLanguageModal(false)}
+          >
+            <div 
+              className="bg-white dark:bg-slate-800 w-full max-w-sm mx-4 rounded-2xl shadow-2xl animate-in slide-in-from-bottom-8 duration-500"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-slate-100 dark:border-slate-700">
+                <h3 className="text-lg font-bold text-slate-800 dark:text-white">{t('settings.selectLanguage')}</h3>
+              </div>
+
+              <div className="p-4 space-y-2">
+                {(Object.keys(LANGUAGES) as Language[]).map((lang) => (
+                  <button
+                    key={lang}
+                    onClick={() => {
+                      setLanguage(lang);
+                      setShowLanguageModal(false);
+                    }}
+                    className={`w-full p-4 rounded-xl flex items-center justify-between transition-colors ${
+                      language === lang
+                        ? 'bg-indigo-50 dark:bg-indigo-900/20 border-2 border-indigo-500'
+                        : 'bg-slate-50 dark:bg-slate-700/50 border-2 border-transparent hover:bg-slate-100 dark:hover:bg-slate-700'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="text-2xl">
+                        {lang === 'en' ? '🇬🇧' : lang === 'de' ? '🇩🇪' : '🇮🇷'}
+                      </span>
+                      <div className="text-left">
+                        <p className={`font-medium ${language === lang ? 'text-indigo-700 dark:text-indigo-300' : 'text-slate-800 dark:text-white'}`}>
+                          {LANGUAGES[lang].nativeName}
+                        </p>
+                        <p className="text-xs text-slate-500 dark:text-slate-400">
+                          {LANGUAGES[lang].name}
+                        </p>
+                      </div>
+                    </div>
+                    {language === lang && (
+                      <span className="text-indigo-500 dark:text-indigo-400">✓</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+
+              <div className="p-4 border-t border-slate-100 dark:border-slate-700">
+                <button
+                  onClick={() => setShowLanguageModal(false)}
+                  className="w-full px-4 py-2 border border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-300 rounded-lg hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors"
+                >
+                  {t('common.close')}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

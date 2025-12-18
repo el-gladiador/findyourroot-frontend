@@ -2,12 +2,15 @@
 
 import React, { useState } from 'react';
 import { useAppStore } from '@/lib/store';
+import { useI18n, LANGUAGES, Language } from '@/lib/i18n';
+import { Globe } from 'lucide-react';
 
 interface LoginPageProps {
   onSuccess?: () => void;
 }
 
 export default function LoginPage({ onSuccess }: LoginPageProps) {
+  const { t, language, setLanguage, dir } = useI18n();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -18,6 +21,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [isRegistering, setIsRegistering] = useState(false);
+  const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   const login = useAppStore((state) => state.login);
   const register = useAppStore((state) => state.register);
 
@@ -28,7 +32,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
     
     // Validate passwords match for registration
     if (isRegistering && password !== confirmPassword) {
-      setError('Passwords do not match');
+      setError(t('auth.passwordsDontMatch'));
       return;
     }
     
@@ -47,7 +51,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
       
       if (result.success) {
         if (isRegistering) {
-          setSuccessMessage('Account created successfully! Redirecting...');
+          setSuccessMessage(t('auth.accountCreated'));
           setTimeout(() => onSuccess?.(), 1500);
         } else {
           onSuccess?.();
@@ -63,7 +67,42 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
+    <div dir={dir} className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100 dark:from-gray-900 dark:to-gray-800 px-4">
+      {/* Language Selector */}
+      <div className="absolute top-4 right-4">
+        <div className="relative">
+          <button
+            onClick={() => setShowLanguageMenu(!showLanguageMenu)}
+            className="flex items-center gap-2 px-3 py-2 bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-lg shadow-sm hover:bg-white dark:hover:bg-gray-800 transition-colors"
+          >
+            <Globe size={18} className="text-gray-600 dark:text-gray-300" />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+              {LANGUAGES[language].nativeName}
+            </span>
+          </button>
+          
+          {showLanguageMenu && (
+            <div className="absolute top-full right-0 mt-2 w-40 bg-white dark:bg-gray-800 rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 overflow-hidden z-50">
+              {(Object.keys(LANGUAGES) as Language[]).map((lang) => (
+                <button
+                  key={lang}
+                  onClick={() => {
+                    setLanguage(lang);
+                    setShowLanguageMenu(false);
+                  }}
+                  className={`w-full px-4 py-2 text-left flex items-center gap-2 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors ${
+                    language === lang ? 'bg-indigo-50 dark:bg-indigo-900/30' : ''
+                  }`}
+                >
+                  <span>{lang === 'en' ? '🇬🇧' : lang === 'de' ? '🇩🇪' : '🇮🇷'}</span>
+                  <span className="text-sm text-gray-700 dark:text-gray-200">{LANGUAGES[lang].nativeName}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
       <div className="max-w-md w-full space-y-8">
         <div className="text-center">
           <div className="mx-auto h-20 w-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mb-4">
@@ -82,10 +121,10 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
             </svg>
           </div>
           <h2 className="text-3xl font-bold text-gray-900 dark:text-white">
-            Find Your Root
+            {t('app.name')}
           </h2>
           <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            {isRegistering ? 'Create an account to view the family tree' : 'Sign in to access your family tree'}
+            {isRegistering ? t('auth.createAccountToView') : t('auth.signInToAccess')}
           </p>
         </div>
 
@@ -102,7 +141,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
                 htmlFor="email"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >
-                Email address
+                {t('auth.email')}
               </label>
               <input
                 id="email"
@@ -113,7 +152,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 className="appearance-none relative block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 transition-colors"
-                placeholder="Enter your email"
+                placeholder={t('auth.enterEmail')}
               />
             </div>
 
@@ -122,7 +161,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
                 htmlFor="password"
                 className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
               >
-                Password
+                {t('auth.password')}
               </label>
               <input
                 id="password"
@@ -133,7 +172,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 className="appearance-none relative block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 transition-colors"
-                placeholder={isRegistering ? "Create a password (min 6 characters)" : "Enter your password"}
+                placeholder={isRegistering ? t('auth.createPassword') : t('auth.enterPassword')}
               />
             </div>
 
@@ -143,7 +182,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
                   htmlFor="confirmPassword"
                   className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                 >
-                  Confirm Password
+                  {t('auth.confirmPassword')}
                 </label>
                 <input
                   id="confirmPassword"
@@ -160,13 +199,13 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
                       ? 'border-green-500 dark:border-green-500'
                       : 'border-gray-300 dark:border-gray-600'
                   }`}
-                  placeholder="Re-enter your password"
+                  placeholder={t('auth.reenterPassword')}
                 />
                 {confirmPassword && password !== confirmPassword && (
-                  <p className="mt-1 text-xs text-red-500">Passwords do not match</p>
+                  <p className="mt-1 text-xs text-red-500">{t('auth.passwordsDontMatch')}</p>
                 )}
                 {confirmPassword && password === confirmPassword && (
-                  <p className="mt-1 text-xs text-green-500">Passwords match ✓</p>
+                  <p className="mt-1 text-xs text-green-500">{t('auth.passwordsMatch')} ✓</p>
                 )}
               </div>
             )}
@@ -178,7 +217,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
                     htmlFor="treeName"
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    Family Tree
+                    {t('auth.familyTree')}
                   </label>
                   <input
                     id="treeName"
@@ -198,7 +237,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
                     htmlFor="fatherName"
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    Father's Name
+                    {t('auth.fatherName')}
                   </label>
                   <input
                     id="fatherName"
@@ -209,7 +248,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
                     value={fatherName}
                     onChange={(e) => setFatherName(e.target.value)}
                     className="appearance-none relative block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 transition-colors"
-                    placeholder="Enter your father's full name"
+                    placeholder={t('auth.enterFatherName')}
                   />
                 </div>
 
@@ -218,7 +257,7 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
                     htmlFor="birthYear"
                     className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2"
                   >
-                    Your Birth Year
+                    {t('auth.birthYear')}
                   </label>
                   <input
                     id="birthYear"
@@ -228,9 +267,9 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
                     value={birthYear}
                     onChange={(e) => setBirthYear(e.target.value)}
                     className="appearance-none relative block w-full px-4 py-3 border border-gray-300 dark:border-gray-600 placeholder-gray-500 dark:placeholder-gray-400 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white dark:bg-gray-700 transition-colors"
-                    placeholder="e.g., 1990"
+                    placeholder={t('auth.enterBirthYear')}
                   />
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">We'll verify you're part of the Batur family tree</p>
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">{t('auth.verifyFamily')}</p>
                 </div>
               </>
             )}
@@ -268,10 +307,10 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
                       d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                     ></path>
                   </svg>
-                  {isRegistering ? 'Creating account...' : 'Signing in...'}
+                  {isRegistering ? t('auth.creatingAccount') : t('auth.signingIn')}
                 </div>
               ) : (
-                isRegistering ? 'Create Account' : 'Sign in'
+                isRegistering ? t('auth.createAccount') : t('auth.signIn')
               )}
             </button>
 
@@ -284,15 +323,15 @@ export default function LoginPage({ onSuccess }: LoginPageProps) {
               }}
               className="w-full text-sm text-blue-600 dark:text-blue-400 hover:text-blue-800 dark:hover:text-blue-300 transition-colors"
             >
-              {isRegistering ? 'Already have an account? Sign in' : "Don't have an account? Register"}
+              {isRegistering ? t('auth.alreadyHaveAccount') : t('auth.dontHaveAccount')}
             </button>
           </div>
         </form>
 
         <p className="text-center text-xs text-gray-500 dark:text-gray-400">
           {isRegistering 
-            ? 'New users will be registered as viewers. You can request elevated permissions after registration.' 
-            : 'Sign in with your credentials or register a new account'}
+            ? t('auth.newUserInfo') 
+            : t('auth.signInOrRegister')}
         </p>
       </div>
     </div>
