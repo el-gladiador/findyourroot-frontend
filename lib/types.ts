@@ -29,7 +29,8 @@ export interface User {
   is_admin: boolean;
   tree_name?: string;
   is_verified?: boolean;
-  person_id?: string; // Derived from Person.linked_user_id (Person owns the link)
+  person_id?: string;   // Derived from Person.linked_user_id (Person owns the link)
+  person_name?: string; // Name of linked person for display
 }
 
 export interface UserListItem {

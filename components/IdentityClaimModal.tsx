@@ -13,6 +13,7 @@ interface IdentityClaimModalProps {
 const IdentityClaimModal: React.FC<IdentityClaimModalProps> = ({ onClose }) => {
   const familyData = useAppStore((state) => state.familyData);
   const user = useAppStore((state) => state.user);
+  const refreshUser = useAppStore((state) => state.refreshUser);
   
   const [step, setStep] = useState<'status' | 'search' | 'confirm'>('status');
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,6 +45,11 @@ const IdentityClaimModal: React.FC<IdentityClaimModalProps> = ({ onClose }) => {
         setIsLinked(response.data.linked);
         setLinkedPerson(response.data.person || null);
         setExistingClaim(response.data.claim || null);
+        
+        // If linked, refresh user data in global store to update UI everywhere
+        if (response.data.linked) {
+          await refreshUser();
+        }
       }
     } catch (err) {
       console.error('Failed to fetch claim status:', err);

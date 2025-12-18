@@ -225,24 +225,33 @@ const SettingsTab = () => {
                 <div>
                   <span className="font-medium text-slate-800 dark:text-white block">Notifications</span>
                   {notificationPermission === 'denied' && (
-                    <span className="text-xs text-amber-600 dark:text-amber-400">Blocked in browser</span>
+                    <span className="text-xs text-amber-600 dark:text-amber-400">Blocked - enable in browser settings</span>
+                  )}
+                  {notificationPermission === 'default' && (
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Tap to enable</span>
+                  )}
+                  {notificationPermission === 'granted' && notifications && (
+                    <span className="text-xs text-green-600 dark:text-green-400">Enabled</span>
+                  )}
+                  {notificationPermission === 'granted' && !notifications && (
+                    <span className="text-xs text-slate-500 dark:text-slate-400">Disabled</span>
                   )}
                   {notificationPermission === 'unsupported' && (
-                    <span className="text-xs text-slate-500">Not supported</span>
+                    <span className="text-xs text-slate-500">Not supported in this browser</span>
                   )}
                 </div>
               </div>
               <button 
                 onClick={handleNotificationsToggle}
                 disabled={notificationPermission === 'unsupported'}
-                className={`w-11 h-6 rounded-full relative transition-colors disabled:opacity-50 ${
-                  notifications && notificationPermission === 'granted'
+                className={`w-11 h-6 rounded-full relative transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
+                  notifications && notificationPermission !== 'denied' && notificationPermission !== 'unsupported'
                     ? 'bg-indigo-500' 
                     : 'bg-slate-200 dark:bg-slate-700'
                 }`}
               >
                 <div className={`absolute top-1 w-4 h-4 bg-white rounded-full shadow-sm transition-all ${
-                  notifications && notificationPermission === 'granted' ? 'right-1' : 'left-1'
+                  notifications && notificationPermission !== 'denied' && notificationPermission !== 'unsupported' ? 'right-1' : 'left-1'
                 }`}></div>
               </button>
             </div>
@@ -349,12 +358,20 @@ const SettingsTab = () => {
                   <span className="font-medium text-slate-800 dark:text-white block">
                     {user?.person_id ? 'My Tree Identity' : 'Claim My Identity'}
                   </span>
-                  <span className="text-xs text-slate-500 dark:text-slate-400">
-                    {user?.person_id ? 'Linked to family tree' : 'Link your profile to the tree'}
+                  <span className={`text-xs ${user?.person_id ? 'text-green-600 dark:text-green-400' : 'text-slate-500 dark:text-slate-400'}`}>
+                    {user?.person_id 
+                      ? `Linked as ${user.person_name || 'family member'}` 
+                      : 'Link your profile to the tree'}
                   </span>
                 </div>
               </div>
-              <ChevronRight size={16} className="text-slate-400" />
+              {user?.person_id ? (
+                <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 px-2 py-1 rounded-full">
+                  ✓ Linked
+                </span>
+              ) : (
+                <ChevronRight size={16} className="text-slate-400" />
+              )}
             </button>
             
             {/* Request Permissions Button - Show for all non-admin users */}

@@ -12,6 +12,7 @@ interface AppState {
   register: (email: string, password: string, treeName: string, fatherName: string, birthYear: string) => Promise<{ success: boolean; error?: string }>;
   logout: () => void;
   validateAuth: () => Promise<boolean>;
+  refreshUser: () => Promise<void>;
   
   // App state
   currentTab: TabType;
@@ -144,6 +145,13 @@ export const useAppStore = create<AppState>()(
         // Token is invalid
         get().logout();
         return false;
+      },
+      
+      refreshUser: async () => {
+        const response = await ApiClient.validateToken();
+        if (response.data?.valid && response.data.user) {
+          set({ user: response.data.user as User });
+        }
       },
       
       // App state
