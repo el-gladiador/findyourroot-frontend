@@ -128,10 +128,9 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
           return (
             <motion.div
               layoutId={`popularity-${person.id}`}
-              transition={layoutTransition}
               className={`absolute -bottom-2 left-1/2 -translate-x-1/2 ${pop.bgColor} px-1.5 py-0.5 rounded-full whitespace-nowrap shadow-md z-10 flex items-center gap-0.5`}
               animate={pop.animate ? { scale: [1, 1.1, 1] } : undefined}
-              transition={pop.animate ? { duration: 1.5, repeat: Infinity, repeatType: 'loop' } : layoutTransition}
+              transition={pop.animate ? { duration: 1.5, repeat: Infinity, repeatType: 'loop' as const } : layoutTransition}
             >
               {pop.icon === 'heart-outline' && (
                 <Heart size={10} className={pop.textColor} strokeWidth={2} />
