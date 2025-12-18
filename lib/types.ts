@@ -15,6 +15,9 @@ export interface Person {
   linked_user_id?: string; // User ID if someone claimed this identity
   instagram_username?: string; // Instagram handle (only shown if linked_user_id is set)
   instagram_avatar_url?: string; // Cached Instagram profile picture URL
+  instagram_full_name?: string; // Instagram display name
+  instagram_bio?: string; // Instagram bio
+  instagram_is_verified?: boolean; // Instagram verified badge
   likes_count?: number; // Number of likes
   liked_by?: string[]; // User IDs who liked
 }

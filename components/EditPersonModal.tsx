@@ -1,45 +1,25 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { X, User, Calendar, UserPlus, Wand2 } from 'lucide-react';
+import { X, User, Calendar, Save, Loader2 } from 'lucide-react';
+import { Person } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
 
-interface AddPersonModalProps {
+interface EditPersonModalProps {
+  person: Person;
   onClose: () => void;
-  parentId?: string;
   onSuccess?: (message: string) => void;
   isContributor?: boolean;
-  isAdmin?: boolean;
 }
 
-// Random data generators
-const firstNames = ['James', 'Mary', 'John', 'Patricia', 'Robert', 'Jennifer', 'Michael', 'Linda', 'William', 'Elizabeth', 'David', 'Barbara', 'Richard', 'Susan', 'Joseph', 'Jessica', 'Thomas', 'Sarah', 'Charles', 'Karen', 'Christopher', 'Nancy', 'Daniel', 'Lisa', 'Matthew', 'Betty', 'Anthony', 'Margaret', 'Mark', 'Sandra', 'Donald', 'Ashley', 'Steven', 'Kimberly', 'Paul', 'Emily', 'Andrew', 'Donna', 'Joshua', 'Michelle'];
-const lastNames = ['Smith', 'Johnson', 'Williams', 'Brown', 'Jones', 'Garcia', 'Miller', 'Davis', 'Rodriguez', 'Martinez', 'Hernandez', 'Lopez', 'Gonzalez', 'Wilson', 'Anderson', 'Thomas', 'Taylor', 'Moore', 'Jackson', 'Martin', 'Lee', 'Thompson', 'White', 'Harris', 'Sanchez', 'Clark', 'Lewis', 'Robinson', 'Walker', 'Young'];
-const roles = ['Father', 'Mother', 'Son', 'Daughter', 'Uncle', 'Aunt', 'Grandfather', 'Grandmother', 'Brother', 'Sister', 'Cousin', 'Nephew', 'Niece'];
-
-const generateRandomData = () => {
-  const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-  const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-  const birthYear = Math.floor(Math.random() * (2010 - 1940 + 1)) + 1940;
-  
-  return {
-    name: `${firstName} ${lastName}`,
-    role: roles[Math.floor(Math.random() * roles.length)],
-    birth: birthYear.toString(),
-    avatar: '',
-  };
-};
-
-const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSuccess, isContributor = false, isAdmin = false }) => {
-  const addPerson = useAppStore((state) => state.addPerson);
+const EditPersonModal: React.FC<EditPersonModalProps> = ({ person, onClose, onSuccess, isContributor = false }) => {
+  const updatePerson = useAppStore((state) => state.updatePerson);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Only generate random data for admins, empty form for others
-  const [formData, setFormData] = useState(isAdmin ? generateRandomData() : {
-    name: '',
-    role: '',
-    birth: '',
-    avatar: '',
+  const [formData, setFormData] = useState({
+    name: person.name,
+    role: person.role,
+    birth: person.birth,
   });
 
   useEffect(() => {
@@ -53,22 +33,18 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSu
     e.preventDefault();
     setIsSubmitting(true);
     
-    console.log('[AddPersonModal] Creating person with parentId:', parentId, 'isContributor:', isContributor);
-    
-    // Let backend handle avatar generation if not provided
-    const result = await addPerson({
+    const result = await updatePerson(person.id, {
       name: formData.name,
       role: formData.role,
       birth: formData.birth,
-      avatar: formData.avatar,
-      children: [],
-    }, parentId);
+    });
 
     setIsSubmitting(false);
     
     if (result.isSuggestion && result.message) {
-      // Show success message for suggestions
       onSuccess?.(result.message);
+    } else if (result.success) {
+      onSuccess?.('Person updated successfully');
     }
 
     onClose();
@@ -87,11 +63,11 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSu
         <div className="sticky top-0 bg-white dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 px-5 py-4 flex items-center justify-between z-10">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-full flex items-center justify-center bg-indigo-100 dark:bg-indigo-900/30">
-              <UserPlus size={18} className="text-indigo-600 dark:text-indigo-400" />
+              <User size={18} className="text-indigo-600 dark:text-indigo-400" />
             </div>
             <div>
               <h2 className="text-lg font-bold text-slate-900 dark:text-white">
-                Add Family Member
+                Edit Family Member
               </h2>
             </div>
           </div>
@@ -105,18 +81,6 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSu
 
         {/* Form */}
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
-          {/* Auto-generate button - Admin only */}
-          {isAdmin && (
-            <button
-              type="button"
-              onClick={() => setFormData(generateRandomData())}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-500 to-indigo-500 hover:from-purple-600 hover:to-indigo-600 text-white rounded-lg font-medium transition-all active:scale-95"
-            >
-              <Wand2 size={18} />
-              Generate Random Data
-            </button>
-          )}
-
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               <User size={16} />
@@ -150,10 +114,11 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSu
           <div>
             <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
               <Calendar size={16} />
-              Birth Year (optional)
+              Birth Year *
             </label>
             <input
               type="text"
+              required
               value={formData.birth}
               onChange={(e) => setFormData({ ...formData, birth: e.target.value })}
               className="w-full px-4 py-2.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white"
@@ -161,34 +126,35 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSu
             />
           </div>
 
-          <div className="flex gap-2 pt-2">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={isSubmitting}
-              className="flex-1 px-4 py-2.5 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors active:scale-95 disabled:opacity-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={isSubmitting}
-              className="flex-1 px-4 py-2.5 text-white rounded-lg font-medium transition-colors active:scale-95 disabled:opacity-50 flex items-center justify-center gap-2 bg-indigo-600 hover:bg-indigo-700"
-            >
-              {isSubmitting ? (
-                <>
-                  <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Adding...
-                </>
-              ) : (
-                'Add Person'
-              )}
-            </button>
-          </div>
+          {/* Contributor notice */}
+          {isContributor && (
+            <div className="p-3 bg-amber-50 dark:bg-amber-900/20 rounded-lg text-amber-700 dark:text-amber-300 text-sm">
+              <p className="font-medium">📝 Your changes will be submitted for review</p>
+              <p className="text-xs mt-1 opacity-80">An admin will review and approve your edits.</p>
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full flex items-center justify-center gap-2 px-4 py-3 bg-indigo-600 hover:bg-indigo-700 disabled:bg-indigo-400 text-white rounded-lg font-semibold transition-colors active:scale-[0.98]"
+          >
+            {isSubmitting ? (
+              <>
+                <Loader2 size={18} className="animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save size={18} />
+                {isContributor ? 'Submit for Review' : 'Save Changes'}
+              </>
+            )}
+          </button>
         </form>
       </div>
     </div>
   );
 };
 
-export default AddPersonModal;
+export default EditPersonModal;

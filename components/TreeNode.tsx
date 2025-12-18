@@ -1,6 +1,6 @@
 'use client';
 
-import React, { memo } from 'react';
+import React, { memo, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Plus, Heart, Flame } from 'lucide-react';
 import { Person } from '@/lib/types';
@@ -13,6 +13,16 @@ interface TreeNodeProps {
   canEdit?: boolean;
   isSelected?: boolean;
 }
+
+// Get avatar URL with fallback
+const getAvatarUrl = (person: Person, useFallback: boolean = false): string => {
+  // If we have Instagram avatar and it hasn't failed, use it
+  if (!useFallback && person.linked_user_id && person.instagram_avatar_url) {
+    return person.instagram_avatar_url;
+  }
+  // Fallback to regular avatar or ui-avatars
+  return person.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=6366f1&color=fff&size=80`;
+};
 
 // Get popularity indicator based on likes count
 const getPopularityIndicator = (likesCount: number = 0) => {
@@ -59,6 +69,9 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
   canEdit = true,
   isSelected = false 
 }) => {
+  // Track if the avatar image failed to load
+  const [avatarFailed, setAvatarFailed] = useState(false);
+
   // Layout transition for shared elements - must match ExpandedPersonCard
   const layoutTransition = {
     type: 'tween' as const,
@@ -108,17 +121,14 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
           }}
           className={`relative w-full h-full border-2 ${isSpouse ? 'border-rose-400' : 'border-indigo-500'} bg-white dark:bg-slate-800 overflow-hidden shadow-lg`}
         >
-          {/* Avatar Image inside the morphing container - Use Instagram avatar if available */}
+          {/* Avatar Image inside the morphing container - Use Instagram avatar if available with fallback */}
           <motion.img 
             layoutId={`avatar-img-${person.id}`}
             transition={layoutTransition}
-            src={
-              (person.linked_user_id && person.instagram_avatar_url) 
-                ? person.instagram_avatar_url 
-                : person.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=6366f1&color=fff&size=80`
-            } 
+            src={getAvatarUrl(person, avatarFailed)}
             alt={person.name} 
             className="w-full h-full object-cover"
+            onError={() => setAvatarFailed(true)}
           />
         </motion.div>
 

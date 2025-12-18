@@ -82,6 +82,7 @@ export const useRealtimeAdminSync = (
   const isInitializedRef = useRef(false);
   const eventSourceRef = useRef<EventSource | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const connectionTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Check if user can view admin data
   const canViewAdminData = user?.role === 'admin' || user?.role === 'co-admin';
@@ -100,12 +101,21 @@ export const useRealtimeAdminSync = (
 
       const sseUrl = `${API_URL}/api/v1/stream/admin?token=${encodeURIComponent(token)}`;
       
+      // Timeout fallback - if SSE doesn't connect within 10 seconds, stop loading
+      connectionTimeoutRef.current = setTimeout(() => {
+        console.log('[Admin SSE] Connection timeout - stopping loading state');
+        setIsLoading(false);
+      }, 10000);
+      
       try {
         const eventSource = new EventSource(sseUrl);
         eventSourceRef.current = eventSource;
 
         eventSource.onopen = () => {
           console.log('[Admin SSE] Connected');
+          if (connectionTimeoutRef.current) {
+            clearTimeout(connectionTimeoutRef.current);
+          }
           setIsConnected(true);
           setIsLoading(false);
         };
@@ -114,6 +124,9 @@ export const useRealtimeAdminSync = (
         eventSource.addEventListener(collectionName, (event) => {
           try {
             const payload = JSON.parse(event.data);
+            
+            // Always ensure loading is false when we receive data
+            setIsLoading(false);
             
             if (payload.items !== undefined) {
               // Initial data load
@@ -182,7 +195,11 @@ export const useRealtimeAdminSync = (
 
         eventSource.onerror = () => {
           console.error('[Admin SSE] Connection error');
+          if (connectionTimeoutRef.current) {
+            clearTimeout(connectionTimeoutRef.current);
+          }
           setIsConnected(false);
+          setIsLoading(false);
           eventSource.close();
           
           reconnectTimeoutRef.current = setTimeout(() => {
@@ -193,6 +210,9 @@ export const useRealtimeAdminSync = (
 
       } catch (error) {
         console.error('[Admin SSE] Failed to create EventSource:', error);
+        if (connectionTimeoutRef.current) {
+          clearTimeout(connectionTimeoutRef.current);
+        }
         setIsLoading(false);
         setIsConnected(false);
       }
@@ -207,6 +227,9 @@ export const useRealtimeAdminSync = (
       }
       if (reconnectTimeoutRef.current) {
         clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (connectionTimeoutRef.current) {
+        clearTimeout(connectionTimeoutRef.current);
       }
     };
   }, [isAuthenticated, canViewAdminData, token, collectionName, statusFilter]);

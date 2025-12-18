@@ -5,6 +5,7 @@ import { useAppStore } from '@/lib/store';
 import TreeNode from '@/components/TreeNode';
 import ExpandedPersonCard from '@/components/ExpandedPersonCard';
 import AddPersonModal from '@/components/AddPersonModal';
+import EditPersonModal from '@/components/EditPersonModal';
 import { Person, canContribute, canEditDirectly, needsApproval } from '@/lib/types';
 
 // Performance: Throttle function for smooth updates
@@ -24,8 +25,10 @@ const TreeTab = () => {
   const clearTree = useAppStore((state) => state.clearTree);
   const user = useAppStore((state) => state.user);
   const focusedPersonId = useAppStore((state) => state.focusedPersonId);
+  const updatePerson = useAppStore((state) => state.updatePerson);
   const [selectedPerson, setSelectedPerson] = useState<Person | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [editingPerson, setEditingPerson] = useState<Person | null>(null);
   const [parentForNewPerson, setParentForNewPerson] = useState<string | undefined>(undefined);
   const [permissionWarning, setPermissionWarning] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -36,6 +39,7 @@ const TreeTab = () => {
   const userCanEditDirectly = user?.role ? canEditDirectly(user.role) : false;
   // Check if user is contributor (needs approval for changes)
   const isContributor = user?.role ? needsApproval(user.role) : false;
+  const isAdmin = user?.role === 'admin';
   const canDelete = user?.role === 'admin';
   const containerRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
@@ -786,6 +790,7 @@ const TreeTab = () => {
             parentId={parentForNewPerson}
             onSuccess={showSuccess}
             isContributor={isContributor}
+            isAdmin={isAdmin}
           />
         )}
       </div>
@@ -931,10 +936,11 @@ const TreeTab = () => {
           person={selectedPerson} 
           onClose={() => setSelectedPerson(null)}
           onEdit={() => {
-            // TODO: Implement edit functionality
+            setEditingPerson(selectedPerson);
+            setSelectedPerson(null);
           }}
           onDelete={() => {
-            // TODO: Implement delete functionality
+            // Delete is handled inside ExpandedPersonCard
           }}
           onAddChild={() => {
             handleAddClick(selectedPerson.id);
@@ -956,6 +962,17 @@ const TreeTab = () => {
           setParentForNewPerson(undefined);
         }} 
         parentId={parentForNewPerson}
+        onSuccess={showSuccess}
+        isContributor={isContributor}
+        isAdmin={isAdmin}
+      />
+    )}
+
+    {/* Edit Person Modal */}
+    {editingPerson && (
+      <EditPersonModal
+        person={editingPerson}
+        onClose={() => setEditingPerson(null)}
         onSuccess={showSuccess}
         isContributor={isContributor}
       />

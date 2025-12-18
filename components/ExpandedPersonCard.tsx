@@ -19,6 +19,16 @@ interface ExpandedPersonCardProps {
   currentUserId?: string; // Current user's ID to check if already liked
 }
 
+// Get avatar URL with fallback
+const getAvatarUrl = (person: Person, useFallback: boolean = false): string => {
+  // If we have Instagram avatar and it hasn't failed, use it
+  if (!useFallback && person.linked_user_id && person.instagram_avatar_url) {
+    return person.instagram_avatar_url;
+  }
+  // Fallback to regular avatar or ui-avatars
+  return person.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=6366f1&color=fff&size=160`;
+};
+
 // Get popularity indicator based on likes count
 const getPopularityIndicator = (likesCount: number = 0) => {
   if (likesCount === 0) {
@@ -72,6 +82,7 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
   const [isLiking, setIsLiking] = useState(false);
   const [localLikesCount, setLocalLikesCount] = useState(person.likes_count || 0);
   const [localLikedBy, setLocalLikedBy] = useState<string[]>(person.liked_by || []);
+  const [avatarFailed, setAvatarFailed] = useState(false);
   
   const hasLiked = currentUserId ? localLikedBy.includes(currentUserId) : false;
   
@@ -206,14 +217,10 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
                   <motion.img
                     layoutId={`avatar-img-${person.id}`}
                     transition={layoutTransition}
-                    src={
-                      // Use Instagram avatar if linked and has Instagram
-                      (person.linked_user_id && person.instagram_avatar_url) 
-                        ? person.instagram_avatar_url 
-                        : person.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(person.name)}&background=6366f1&color=fff&size=96`
-                    }
+                    src={getAvatarUrl(person, avatarFailed)}
                     alt={person.name}
                     className="w-full h-full object-cover"
+                    onError={() => setAvatarFailed(true)}
                   />
                 </div>
               </div>
@@ -296,20 +303,37 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
 
               {/* Instagram Link - Only show if person is linked to a user */}
               {person.linked_user_id && person.instagram_username && (
-                <a
-                  href={`https://instagram.com/${person.instagram_username}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-3 p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl hover:from-purple-100 hover:to-pink-100 dark:hover:from-purple-900/30 dark:hover:to-pink-900/30 transition-colors"
-                >
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center flex-shrink-0">
-                    <Instagram size={16} className="text-white" />
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-slate-500 dark:text-slate-400 uppercase tracking-wide">Instagram</p>
-                    <p className="text-sm font-semibold text-slate-800 dark:text-white">@{person.instagram_username}</p>
-                  </div>
-                </a>
+                <div className="p-3 bg-gradient-to-r from-purple-50 to-pink-50 dark:from-purple-900/20 dark:to-pink-900/20 rounded-xl">
+                  <a
+                    href={`https://instagram.com/${person.instagram_username}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-3 hover:opacity-80 transition-opacity"
+                  >
+                    <div className="w-9 h-9 rounded-full bg-gradient-to-br from-purple-500 via-pink-500 to-orange-400 flex items-center justify-center flex-shrink-0">
+                      <Instagram size={16} className="text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5">
+                        <p className="text-sm font-semibold text-slate-800 dark:text-white truncate">@{person.instagram_username}</p>
+                        {person.instagram_is_verified && (
+                          <svg className="w-4 h-4 text-blue-500 flex-shrink-0" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10 10-4.5 10-10S17.5 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+                          </svg>
+                        )}
+                      </div>
+                      {person.instagram_full_name && person.instagram_full_name !== person.instagram_username && (
+                        <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{person.instagram_full_name}</p>
+                      )}
+                    </div>
+                  </a>
+                  {/* Instagram Bio */}
+                  {person.instagram_bio && (
+                    <p className="mt-2 text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3">
+                      {person.instagram_bio}
+                    </p>
+                  )}
+                </div>
               )}
 
               {/* Linked Account Badge - Show if linked but no Instagram */}
