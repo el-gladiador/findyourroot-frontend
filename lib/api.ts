@@ -271,6 +271,24 @@ export class ApiClient {
     });
   }
 
+  // Check for duplicate names
+  static async checkDuplicateName(name: string, threshold: number = 0.8): Promise<ApiResponse<{
+    has_duplicates: boolean;
+    matches: Array<{
+      person_id: string;
+      name: string;
+      similarity: number;
+      match_type: string;
+    }>;
+    input_name: string;
+    normalized: string;
+  }>> {
+    return this.request('/api/v1/tree/check-duplicate', {
+      method: 'POST',
+      body: JSON.stringify({ name, threshold }),
+    });
+  }
+
   static async updatePerson(id: string, updates: any): Promise<ApiResponse<any>> {
     return this.request(`/api/v1/tree/${id}`, {
       method: 'PUT',
