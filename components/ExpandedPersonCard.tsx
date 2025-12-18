@@ -2,9 +2,10 @@
 
 import React, { memo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, Calendar, Edit3, Trash2, UserPlus, Loader2, Instagram } from 'lucide-react';
+import { X, Calendar, Edit3, Trash2, UserPlus, Loader2, Instagram, Heart, Flame } from 'lucide-react';
 import { Person } from '@/lib/types';
 import { useAppStore } from '@/lib/store';
+import { ApiClient } from '@/lib/api';
 
 interface ExpandedPersonCardProps {
   person: Person;
@@ -15,7 +16,45 @@ interface ExpandedPersonCardProps {
   canEdit?: boolean;
   isContributor?: boolean; // Keep for API but not used in UI
   onSuccess?: (message: string) => void;
+  currentUserId?: string; // Current user's ID to check if already liked
 }
+
+// Get popularity indicator based on likes count
+const getPopularityIndicator = (likesCount: number = 0) => {
+  if (likesCount === 0) {
+    return {
+      icon: 'heart-outline',
+      bgColor: 'bg-slate-200 dark:bg-slate-600',
+      textColor: 'text-slate-600 dark:text-slate-200',
+      showCount: false,
+      animate: false,
+    };
+  } else if (likesCount <= 5) {
+    return {
+      icon: 'heart',
+      bgColor: 'bg-rose-100 dark:bg-rose-900/40',
+      textColor: 'text-rose-600 dark:text-rose-400',
+      showCount: true,
+      animate: false,
+    };
+  } else if (likesCount <= 15) {
+    return {
+      icon: 'heart',
+      bgColor: 'bg-rose-100 dark:bg-rose-900/40',
+      textColor: 'text-rose-600 dark:text-rose-400',
+      showCount: true,
+      animate: true,
+    };
+  } else {
+    return {
+      icon: 'fire',
+      bgColor: 'bg-gradient-to-r from-orange-100 to-red-100 dark:from-orange-900/40 dark:to-red-900/40',
+      textColor: 'text-orange-600 dark:text-orange-400',
+      showCount: true,
+      animate: true,
+    };
+  }
+};
 
 const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
   person,
@@ -25,9 +64,16 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
   canEdit = false,
   isContributor = false,
   onSuccess,
+  currentUserId,
 }) => {
   const removePerson = useAppStore((state) => state.removePerson);
+  const updatePersonLocal = useAppStore((state) => state.updatePersonLocal);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isLiking, setIsLiking] = useState(false);
+  const [localLikesCount, setLocalLikesCount] = useState(person.likes_count || 0);
+  const [localLikedBy, setLocalLikedBy] = useState<string[]>(person.liked_by || []);
+  
+  const hasLiked = currentUserId ? localLikedBy.includes(currentUserId) : false;
   
   // Layout transition for shared elements
   const layoutTransition = {
@@ -40,6 +86,47 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
   const contentTransition = {
     duration: 0.15,
     ease: 'easeOut' as const,
+  };
+
+  const handleLike = async () => {
+    if (!currentUserId || isLiking) return;
+    
+    setIsLiking(true);
+    try {
+      if (hasLiked) {
+        // Unlike
+        const result = await ApiClient.unlikePerson(person.id);
+        if (!result.error) {
+          const newCount = Math.max(0, localLikesCount - 1);
+          const newLikedBy = localLikedBy.filter(id => id !== currentUserId);
+          setLocalLikesCount(newCount);
+          setLocalLikedBy(newLikedBy);
+          // Update store locally
+          updatePersonLocal(person.id, { 
+            likes_count: newCount,
+            liked_by: newLikedBy
+          });
+        }
+      } else {
+        // Like
+        const result = await ApiClient.likePerson(person.id);
+        if (!result.error) {
+          const newCount = localLikesCount + 1;
+          const newLikedBy = [...localLikedBy, currentUserId];
+          setLocalLikesCount(newCount);
+          setLocalLikedBy(newLikedBy);
+          // Update store locally
+          updatePersonLocal(person.id, { 
+            likes_count: newCount,
+            liked_by: newLikedBy
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to toggle like:', error);
+    } finally {
+      setIsLiking(false);
+    }
   };
 
   const handleDelete = async () => {
@@ -132,17 +219,47 @@ const ExpandedPersonCard: React.FC<ExpandedPersonCardProps> = memo(({
               </div>
             </div>
 
-            {/* Role Badge - Shared Element */}
-            <div className="flex justify-center mb-2">
-              <motion.div
-                layoutId={`role-${person.id}`}
-                transition={layoutTransition}
-                className="px-4 py-1.5 bg-indigo-100 dark:bg-indigo-900/40 rounded-full"
-              >
-                <span className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">
-                  {person.role}
-                </span>
-              </motion.div>
+            {/* Popularity Badge with Like Button */}
+            <div className="flex justify-center items-center gap-2 mb-2">
+              {/* Role Label */}
+              <span className="text-sm text-slate-500 dark:text-slate-400">
+                {person.role}
+              </span>
+              
+              {/* Like Button + Count */}
+              {(() => {
+                const pop = getPopularityIndicator(localLikesCount);
+                return (
+                  <motion.button
+                    layoutId={`popularity-${person.id}`}
+                    transition={layoutTransition}
+                    onClick={handleLike}
+                    disabled={!currentUserId || isLiking}
+                    className={`${pop.bgColor} px-3 py-1.5 rounded-full flex items-center gap-1.5 
+                      ${currentUserId ? 'cursor-pointer hover:opacity-80 active:scale-95' : 'cursor-default'} 
+                      transition-all disabled:opacity-50`}
+                    whileTap={currentUserId ? { scale: 0.9 } : undefined}
+                  >
+                    {isLiking ? (
+                      <Loader2 size={16} className={`${pop.textColor} animate-spin`} />
+                    ) : pop.icon === 'heart-outline' ? (
+                      <Heart size={16} className={`${pop.textColor} ${hasLiked ? 'fill-current' : ''}`} strokeWidth={2} />
+                    ) : pop.icon === 'heart' ? (
+                      <Heart 
+                        size={16} 
+                        className={`${pop.textColor} ${hasLiked ? 'fill-current' : ''}`} 
+                        fill={hasLiked ? 'currentColor' : 'none'} 
+                        strokeWidth={hasLiked ? 0 : 2} 
+                      />
+                    ) : (
+                      <Flame size={16} className={pop.textColor} fill="currentColor" strokeWidth={0} />
+                    )}
+                    <span className={`${pop.textColor} text-sm font-semibold`}>
+                      {localLikesCount}
+                    </span>
+                  </motion.button>
+                );
+              })()}
             </div>
 
             {/* Name - Shared Element */}

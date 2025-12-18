@@ -32,6 +32,7 @@ interface AppState {
   addPerson: (person: Omit<Person, 'id'>, parentId?: string) => Promise<{ id: string | null; isSuggestion: boolean; message?: string }>;
   removePerson: (id: string) => Promise<{ success: boolean; isSuggestion: boolean; message?: string }>;
   updatePerson: (id: string, updates: Partial<Person>) => Promise<{ success: boolean; isSuggestion: boolean; message?: string }>;
+  updatePersonLocal: (id: string, updates: Partial<Person>) => void;
   clearTree: () => Promise<boolean>;
   
   // Suggestion methods
@@ -315,6 +316,15 @@ export const useAppStore = create<AppState>()(
         }
         
         return { success: false, message: response.error || 'Failed to create suggestion' };
+      },
+      
+      // Optimistic local update for a single person (for likes, etc.)
+      updatePersonLocal: (id: string, updates: Partial<Person>) => {
+        set((state) => ({
+          familyData: state.familyData.map((p) => 
+            p.id === id ? { ...p, ...updates } : p
+          ),
+        }));
       },
       
       // Internal method for real-time sync to update data directly

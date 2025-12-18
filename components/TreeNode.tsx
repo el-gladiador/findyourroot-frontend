@@ -2,7 +2,7 @@
 
 import React, { memo } from 'react';
 import { motion } from 'framer-motion';
-import { Plus } from 'lucide-react';
+import { Plus, Heart, Flame } from 'lucide-react';
 import { Person } from '@/lib/types';
 
 interface TreeNodeProps {
@@ -13,6 +13,43 @@ interface TreeNodeProps {
   canEdit?: boolean;
   isSelected?: boolean;
 }
+
+// Get popularity indicator based on likes count
+const getPopularityIndicator = (likesCount: number = 0) => {
+  if (likesCount === 0) {
+    return {
+      icon: 'heart-outline',
+      bgColor: 'bg-slate-400 dark:bg-slate-600',
+      textColor: 'text-white dark:text-slate-200',
+      showCount: false,
+      animate: false,
+    };
+  } else if (likesCount <= 5) {
+    return {
+      icon: 'heart',
+      bgColor: 'bg-rose-500',
+      textColor: 'text-white',
+      showCount: true,
+      animate: false,
+    };
+  } else if (likesCount <= 15) {
+    return {
+      icon: 'heart',
+      bgColor: 'bg-rose-500',
+      textColor: 'text-white',
+      showCount: true,
+      animate: true,
+    };
+  } else {
+    return {
+      icon: 'fire',
+      bgColor: 'bg-gradient-to-r from-orange-500 to-red-500',
+      textColor: 'text-white',
+      showCount: true,
+      animate: true,
+    };
+  }
+};
 
 const TreeNode: React.FC<TreeNodeProps> = memo(({ 
   person, 
@@ -85,16 +122,34 @@ const TreeNode: React.FC<TreeNodeProps> = memo(({
           />
         </motion.div>
 
-        {/* Role Badge */}
-        <motion.div
-          layoutId={`role-${person.id}`}
-          transition={layoutTransition}
-          className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-slate-800 dark:bg-white px-2 py-0.5 rounded-full whitespace-nowrap shadow-md z-10"
-        >
-          <span className="text-white dark:text-slate-900 text-[10px] font-bold">
-            {person.role}
-          </span>
-        </motion.div>
+        {/* Popularity Badge */}
+        {(() => {
+          const pop = getPopularityIndicator(person.likes_count);
+          return (
+            <motion.div
+              layoutId={`popularity-${person.id}`}
+              transition={layoutTransition}
+              className={`absolute -bottom-2 left-1/2 -translate-x-1/2 ${pop.bgColor} px-1.5 py-0.5 rounded-full whitespace-nowrap shadow-md z-10 flex items-center gap-0.5`}
+              animate={pop.animate ? { scale: [1, 1.1, 1] } : undefined}
+              transition={pop.animate ? { duration: 1.5, repeat: Infinity, repeatType: 'loop' } : layoutTransition}
+            >
+              {pop.icon === 'heart-outline' && (
+                <Heart size={10} className={pop.textColor} strokeWidth={2} />
+              )}
+              {pop.icon === 'heart' && (
+                <Heart size={10} className={pop.textColor} fill="currentColor" strokeWidth={0} />
+              )}
+              {pop.icon === 'fire' && (
+                <Flame size={10} className={pop.textColor} fill="currentColor" strokeWidth={0} />
+              )}
+              {pop.showCount && (
+                <span className={`${pop.textColor} text-[10px] font-bold`}>
+                  {person.likes_count}
+                </span>
+              )}
+            </motion.div>
+          );
+        })()}
 
         {/* Add Child Button - No morph, just regular button */}
         {onAddChild && canEdit && (

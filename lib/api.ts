@@ -290,6 +290,19 @@ export class ApiClient {
     });
   }
 
+  // Like/Unlike person endpoints
+  static async likePerson(personId: string): Promise<ApiResponse<{ message: string }>> {
+    return this.request(`/api/v1/tree/${personId}/like`, {
+      method: 'POST',
+    });
+  }
+
+  static async unlikePerson(personId: string): Promise<ApiResponse<{ message: string }>> {
+    return this.request(`/api/v1/tree/${personId}/like`, {
+      method: 'DELETE',
+    });
+  }
+
   // Search endpoints
   static async searchPeople(params: {
     q?: string;
