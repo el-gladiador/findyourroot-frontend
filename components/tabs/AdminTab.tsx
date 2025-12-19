@@ -235,36 +235,27 @@ const AdminTab = () => {
   const getRoleBadgeColor = (role: string) => {
     switch (role) {
       case 'admin':
-        return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300';
+        return 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900';
       case 'co-admin':
-        return 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300';
+        return 'bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900';
       case 'contributor':
-        return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300';
+        return 'bg-slate-500 dark:bg-slate-400 text-white dark:text-slate-900';
       default:
-        return 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300';
+        return 'bg-slate-300 dark:bg-slate-600 text-slate-700 dark:text-slate-300';
     }
   };
 
   const getSuggestionTypeIcon = (type: string) => {
     switch (type) {
-      case 'add': return <Plus size={16} className="text-green-500" />;
-      case 'edit': return <Edit3 size={16} className="text-blue-500" />;
-      case 'delete': return <Trash2 size={16} className="text-red-500" />;
-      default: return <Eye size={16} />;
+      case 'add': return <Plus size={16} className="text-slate-600 dark:text-slate-400" />;
+      case 'edit': return <Edit3 size={16} className="text-slate-600 dark:text-slate-400" />;
+      case 'delete': return <Trash2 size={16} className="text-slate-600 dark:text-slate-400" />;
+      default: return <Eye size={16} className="text-slate-600 dark:text-slate-400" />;
     }
   };
 
   const getSuggestionTypeBadge = (type: string) => {
-    switch (type) {
-      case 'add':
-        return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300';
-      case 'edit':
-        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300';
-      case 'delete':
-        return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300';
-      default:
-        return 'bg-gray-100 dark:bg-gray-900/30 text-gray-700 dark:text-gray-300';
-    }
+    return 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700';
   };
 
   // Handle linking user to tree node
@@ -327,14 +318,14 @@ const AdminTab = () => {
           {isAdmin && (
             <button
               onClick={() => setShowPopulateModal(true)}
-              className="flex items-center gap-1 px-2 py-1 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 rounded-full text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"
+              className="flex items-center gap-1 px-2 py-1 bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 rounded-full text-xs hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors border border-slate-200 dark:border-slate-700"
             >
               <FileText size={12} />
               Populate
             </button>
           )}
-          <div className="flex items-center gap-1.5 px-2 py-1 bg-green-50 dark:bg-green-900/20 rounded-full text-green-600 dark:text-green-400 text-xs">
-            <div className="w-1.5 h-1.5 bg-green-500 rounded-full animate-pulse" />
+          <div className="flex items-center gap-1.5 px-2 py-1 bg-slate-100 dark:bg-slate-800 rounded-full text-slate-600 dark:text-slate-400 text-xs border border-slate-200 dark:border-slate-700">
+            <div className="w-1.5 h-1.5 bg-slate-600 dark:bg-slate-400 rounded-full animate-pulse" />
             Live
           </div>
         </div>
@@ -366,7 +357,7 @@ const AdminTab = () => {
               onClick={() => setActiveTab('permissions')}
               className={`relative flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'permissions'
-                  ? 'bg-indigo-600 text-white'
+                  ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
@@ -382,7 +373,7 @@ const AdminTab = () => {
               onClick={() => setActiveTab('identity')}
               className={`relative flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'identity'
-                  ? 'bg-purple-600 text-white'
+                  ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
@@ -398,7 +389,7 @@ const AdminTab = () => {
               onClick={() => setActiveTab('users')}
               className={`flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap ${
                 activeTab === 'users'
-                  ? 'bg-orange-600 text-white'
+                  ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
                   : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
               }`}
             >
@@ -418,7 +409,7 @@ const AdminTab = () => {
               onClick={() => setSuggestionFilter('pending')}
               className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 suggestionFilter === 'pending'
-                  ? 'bg-yellow-500 text-white'
+                  ? 'bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
@@ -428,7 +419,7 @@ const AdminTab = () => {
               onClick={() => setSuggestionFilter('approved')}
               className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 suggestionFilter === 'approved'
-                  ? 'bg-green-500 text-white'
+                  ? 'bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
@@ -438,7 +429,7 @@ const AdminTab = () => {
               onClick={() => setSuggestionFilter('rejected')}
               className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 suggestionFilter === 'rejected'
-                  ? 'bg-red-500 text-white'
+                  ? 'bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
@@ -450,7 +441,7 @@ const AdminTab = () => {
           <div className="space-y-3">
             {isLoadingRealtimeSuggestions ? (
               <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-green-600"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-slate-600 dark:border-slate-400"></div>
               </div>
             ) : groupedSuggestionsList.length === 0 ? (
               <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
@@ -475,7 +466,7 @@ const AdminTab = () => {
                         {first.type}
                       </span>
                       {isGrouped && (
-                        <span className="px-1.5 py-0.5 bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 rounded text-[10px] font-medium">
+                        <span className="px-1.5 py-0.5 bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 rounded text-[10px] font-medium border border-slate-200 dark:border-slate-700">
                           {group.length} votes
                         </span>
                       )}
@@ -515,7 +506,7 @@ const AdminTab = () => {
                           <>
                             <button
                               onClick={() => handleBatchApprove(allIds, `${first.type} - ${first.target_person?.name || first.person_data?.name || 'new'}`)}
-                              className="flex-1 px-2 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded-md transition-colors"
+                              className="flex-1 px-2 py-1.5 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 text-xs rounded-md transition-colors"
                             >
                               ✓ Approve All
                             </button>
@@ -530,7 +521,7 @@ const AdminTab = () => {
                           <>
                             <button
                               onClick={() => handleApproveSuggestion(first.id)}
-                              className="flex-1 px-2 py-1.5 bg-green-600 hover:bg-green-700 text-white text-xs rounded-md transition-colors"
+                              className="flex-1 px-2 py-1.5 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 text-xs rounded-md transition-colors"
                             >
                               ✓ Approve
                             </button>
@@ -546,9 +537,7 @@ const AdminTab = () => {
                     )}
 
                     {suggestionFilter !== 'pending' && (
-                      <span className={`text-xs font-medium ${
-                        suggestionFilter === 'approved' ? 'text-green-600' : 'text-red-500'
-                      }`}>
+                      <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
                         {suggestionFilter === 'approved' ? '✓ Approved' : '✗ Rejected'}
                         {first.reviewer_email && (
                           <span className="text-xs opacity-75 ml-1">by {first.reviewer_email}</span>
@@ -572,7 +561,7 @@ const AdminTab = () => {
               onClick={() => setFilter('pending')}
               className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 filter === 'pending'
-                  ? 'bg-indigo-500 text-white'
+                  ? 'bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
@@ -582,7 +571,7 @@ const AdminTab = () => {
               onClick={() => setFilter('approved')}
               className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 filter === 'approved'
-                  ? 'bg-green-500 text-white'
+                  ? 'bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
@@ -592,7 +581,7 @@ const AdminTab = () => {
               onClick={() => setFilter('rejected')}
               className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 filter === 'rejected'
-                  ? 'bg-red-500 text-white'
+                  ? 'bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
@@ -603,7 +592,7 @@ const AdminTab = () => {
           <div className="space-y-3">
             {isLoadingRealtimeRequests ? (
               <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-indigo-600"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-slate-600 dark:border-slate-400"></div>
               </div>
             ) : realtimeRequests.length === 0 ? (
               <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
@@ -640,7 +629,7 @@ const AdminTab = () => {
                     <div className="flex gap-2 mt-3">
                       <button
                         onClick={() => handleApprove(request.id)}
-                        className="flex-1 px-3 py-1.5 bg-green-600 hover:bg-green-700 text-white text-sm rounded-lg transition-colors"
+                        className="flex-1 px-3 py-1.5 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 text-sm rounded-lg transition-colors"
                       >
                         Approve
                       </button>
@@ -654,9 +643,7 @@ const AdminTab = () => {
                   )}
 
                   {filter !== 'pending' && (
-                    <span className={`text-xs font-medium ${
-                      filter === 'approved' ? 'text-green-600' : 'text-red-500'
-                    }`}>
+                    <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
                       {filter === 'approved' ? '✓ Approved' : '✗ Rejected'}
                     </span>
                   )}
@@ -676,7 +663,7 @@ const AdminTab = () => {
               onClick={() => setClaimFilter('pending')}
               className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 claimFilter === 'pending'
-                  ? 'bg-yellow-500 text-white'
+                  ? 'bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
@@ -686,7 +673,7 @@ const AdminTab = () => {
               onClick={() => setClaimFilter('approved')}
               className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 claimFilter === 'approved'
-                  ? 'bg-green-500 text-white'
+                  ? 'bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
@@ -696,7 +683,7 @@ const AdminTab = () => {
               onClick={() => setClaimFilter('rejected')}
               className={`flex-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
                 claimFilter === 'rejected'
-                  ? 'bg-red-500 text-white'
+                  ? 'bg-slate-700 dark:bg-slate-300 text-white dark:text-slate-900'
                   : 'text-slate-500 dark:text-slate-400'
               }`}
             >
@@ -707,7 +694,7 @@ const AdminTab = () => {
           <div className="space-y-3">
             {isLoadingRealtimeClaims ? (
               <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-purple-600"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-slate-600 dark:border-slate-400"></div>
               </div>
             ) : realtimeClaims.length === 0 ? (
               <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
@@ -722,7 +709,7 @@ const AdminTab = () => {
                 >
                   {/* Compact header */}
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">
+                    <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700">
                       Identity Claim
                     </span>
                     <span className="text-[10px] text-slate-400 ml-auto">{formatDate(claim.created_at)}</span>
@@ -747,7 +734,7 @@ const AdminTab = () => {
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleApproveClaim(claim.id)}
-                        className="flex-1 px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white text-xs rounded-md transition-colors"
+                        className="flex-1 px-2 py-1 bg-slate-900 dark:bg-slate-100 hover:bg-slate-800 dark:hover:bg-slate-200 text-white dark:text-slate-900 text-xs rounded-md transition-colors"
                       >
                         Link
                       </button>
@@ -761,9 +748,7 @@ const AdminTab = () => {
                   )}
 
                   {claimFilter !== 'pending' && (
-                    <span className={`text-[10px] font-medium ${
-                      claimFilter === 'approved' ? 'text-green-600' : 'text-red-500'
-                    }`}>
+                    <span className="text-[10px] font-medium text-slate-600 dark:text-slate-400">
                       {claimFilter === 'approved' ? '✓ Linked' : '✗ Rejected'}
                     </span>
                   )}
@@ -780,7 +765,7 @@ const AdminTab = () => {
           <div className="space-y-3">
             {isLoadingUsers ? (
               <div className="flex justify-center py-8">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-orange-600"></div>
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-slate-600 dark:border-slate-400"></div>
               </div>
             ) : users.length === 0 ? (
               <div className="text-center py-8 bg-white dark:bg-slate-800 rounded-xl border border-slate-100 dark:border-slate-700">
@@ -1029,7 +1014,7 @@ const AdminTab = () => {
                     </div>
                     {isLinking && (
                       <div className="ml-auto">
-                        <div className="w-4 h-4 border-2 border-indigo-500 border-t-transparent rounded-full animate-spin" />
+                        <div className="w-4 h-4 border-2 border-slate-600 dark:border-slate-400 border-t-transparent rounded-full animate-spin" />
                       </div>
                     )}
                   </button>
