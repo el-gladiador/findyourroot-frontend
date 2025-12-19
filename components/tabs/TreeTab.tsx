@@ -35,7 +35,7 @@ const TreeTab = () => {
   
   // Check if user can contribute (contributors and above can use buttons)
   const userCanContribute = user?.role ? canContribute(user.role) : false;
-  // Check if user can edit directly (editors and above)
+  // Check if user can edit directly (co-admins and above)
   const userCanEditDirectly = user?.role ? canEditDirectly(user.role) : false;
   // Check if user is contributor (needs approval for changes)
   const isContributor = user?.role ? needsApproval(user.role) : false;
@@ -180,11 +180,65 @@ const TreeTab = () => {
     setScale(prevScale => Math.max(prevScale - 0.1, dynamicMinZoom));
   };
 
-  const handleResetZoom = () => {
-    // Reset to initial calculated state
-    setScale(initialScale);
-    setTranslate(initialTranslate);
-  };
+  const handleResetZoom = useCallback(() => {
+    if (!containerRef.current || !viewportRef.current || familyData.length === 0) {
+      setScale(1);
+      setTranslate({ x: 0, y: 0 });
+      return;
+    }
+
+    const viewportRect = viewportRef.current.getBoundingClientRect();
+    
+    // Get all node elements and calculate bounding box
+    const nodes = Array.from(nodeRefs.current.values());
+    if (nodes.length === 0) {
+      setScale(1);
+      setTranslate({ x: 0, y: 0 });
+      return;
+    }
+
+    // Find the bounding box of all nodes in their current unscaled positions
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    
+    nodes.forEach(node => {
+      const rect = node.getBoundingClientRect();
+      const viewportRect = viewportRef.current!.getBoundingClientRect();
+      
+      // Convert to viewport-relative coordinates, accounting for current transform
+      const currentScale = gestureState.current.currentScale;
+      const currentTranslate = gestureState.current.currentTranslate;
+      
+      // Get position relative to viewport center
+      const nodeLeft = (rect.left - viewportRect.left - viewportRect.width / 2 - currentTranslate.x) / currentScale;
+      const nodeTop = (rect.top - viewportRect.top - viewportRect.height / 2 - currentTranslate.y) / currentScale;
+      const nodeRight = nodeLeft + rect.width / currentScale;
+      const nodeBottom = nodeTop + rect.height / currentScale;
+      
+      minX = Math.min(minX, nodeLeft);
+      minY = Math.min(minY, nodeTop);
+      maxX = Math.max(maxX, nodeRight);
+      maxY = Math.max(maxY, nodeBottom);
+    });
+
+    // Calculate tree dimensions
+    const treeWidth = maxX - minX;
+    const treeHeight = maxY - minY;
+    const treeCenterX = (minX + maxX) / 2;
+    const treeCenterY = (minY + maxY) / 2;
+
+    // Calculate optimal scale to fit all nodes with 10% padding
+    const scaleX = (viewportRect.width * 0.9) / treeWidth;
+    const scaleY = (viewportRect.height * 0.9) / treeHeight;
+    const optimalScale = Math.min(scaleX, scaleY, ZOOM_MAX);
+    const clampedScale = Math.max(optimalScale, dynamicMinZoom);
+
+    // Center the tree
+    const newTranslateX = -treeCenterX * clampedScale;
+    const newTranslateY = -treeCenterY * clampedScale;
+
+    setScale(clampedScale);
+    setTranslate({ x: newTranslateX, y: newTranslateY });
+  }, [familyData.length, dynamicMinZoom, ZOOM_MAX]);
 
   // Focus on a specific person in the tree
   const focusOnPerson = useCallback((personId: string) => {
@@ -232,6 +286,31 @@ const TreeTab = () => {
     if (transformRef.current) {
       transformRef.current.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px)) scale(${s})`;
     }
+  }, []);
+
+  // Apply pan boundaries to prevent tree from going completely out of view
+  const applyPanBoundaries = useCallback((x: number, y: number, s: number) => {
+    if (!containerRef.current || !viewportRef.current) return { x, y };
+
+    const viewportRect = viewportRef.current.getBoundingClientRect();
+    const containerRect = containerRef.current.getBoundingClientRect();
+    
+    // Calculate tree dimensions at current scale
+    const scaledWidth = containerRect.width;
+    const scaledHeight = containerRect.height;
+    
+    // Allow tree to be panned but not completely off screen
+    // Keep at least 20% of tree visible
+    const minVisibleRatio = 0.2;
+    const maxOffsetX = scaledWidth * (1 - minVisibleRatio);
+    const maxOffsetY = scaledHeight * (1 - minVisibleRatio);
+    const minOffsetX = -scaledWidth * (1 - minVisibleRatio);
+    const minOffsetY = -scaledHeight * (1 - minVisibleRatio);
+    
+    const boundedX = Math.max(minOffsetX, Math.min(maxOffsetX, x));
+    const boundedY = Math.max(minOffsetY, Math.min(maxOffsetY, y));
+    
+    return { x: boundedX, y: boundedY };
   }, []);
 
   // Stop any running inertia animation
@@ -288,15 +367,19 @@ const TreeTab = () => {
       gs.currentTranslate.x += vx;
       gs.currentTranslate.y += vy;
       
+      // Apply boundaries
+      const bounded = applyPanBoundaries(gs.currentTranslate.x, gs.currentTranslate.y, gs.currentScale);
+      gs.currentTranslate = bounded;
+      
       // Apply to DOM
-      applyTransformToDOM(gs.currentTranslate.x, gs.currentTranslate.y, gs.currentScale);
+      applyTransformToDOM(bounded.x, bounded.y, gs.currentScale);
       
       // Continue animation
       gs.inertiaRafId = requestAnimationFrame(animate);
     };
     
     gestureState.current.inertiaRafId = requestAnimationFrame(animate);
-  }, [applyTransformToDOM, calculateVelocity]);
+  }, [applyTransformToDOM, calculateVelocity, applyPanBoundaries]);
 
   // Pan handlers - allow panning from anywhere, track if dragging occurred
   const handleMouseDown = (e: React.MouseEvent) => {
@@ -340,8 +423,10 @@ const TreeTab = () => {
       gs.velocityHistory.shift();
     }
     
-    gs.currentTranslate = { x: newX, y: newY };
-    applyTransformToDOM(newX, newY, gs.currentScale);
+    // Apply boundaries
+    const bounded = applyPanBoundaries(newX, newY, gs.currentScale);
+    gs.currentTranslate = bounded;
+    applyTransformToDOM(bounded.x, bounded.y, gs.currentScale);
   };
 
   const handleMouseUp = () => {
@@ -478,8 +563,10 @@ const TreeTab = () => {
         gs.velocityHistory.shift();
       }
       
-      gs.currentTranslate = { x: newX, y: newY };
-      applyTransformToDOM(newX, newY, gs.currentScale);
+      // Apply boundaries
+      const bounded = applyPanBoundaries(newX, newY, gs.currentScale);
+      gs.currentTranslate = bounded;
+      applyTransformToDOM(bounded.x, bounded.y, gs.currentScale);
     }
   };
 
@@ -727,20 +814,17 @@ const TreeTab = () => {
       setDynamicMinZoom(newMinZoom);
       
       // Only set initial state once when tree first loads
-      if (!hasInitializedView.current) {
+      if (!hasInitializedView.current && nodeRefs.current.size > 0) {
         hasInitializedView.current = true;
-        const optimalScale = Math.min(Math.max(calculatedMinZoom, newMinZoom), ZOOM_MAX);
-        setInitialScale(optimalScale);
-        setInitialTranslate({ x: 0, y: 0 });
-        setScale(optimalScale);
-        setTranslate({ x: 0, y: 0 });
+        // Use handleResetZoom logic to auto-fit
+        setTimeout(() => handleResetZoom(), 100);
       }
     };
     
     // Wait for tree to render
     const timer = setTimeout(calculateMinZoom, 300);
     return () => clearTimeout(timer);
-  }, [familyData.length, nodesRendered, ZOOM_MAX]);
+  }, [familyData.length, nodesRendered, ZOOM_MAX, handleResetZoom]);
 
   // Cleanup RAF on unmount
   useEffect(() => {
@@ -903,16 +987,14 @@ const TreeTab = () => {
         >
           <ZoomOut size={20} />
         </button>
-        {/* Reset button - only show when view has changed */}
-        {hasViewChanged && (
-          <button
-            onClick={handleResetZoom}
-            className="w-10 h-10 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center active:scale-95 animate-in fade-in zoom-in-95"
-            title="Reset view"
-          >
-            <Maximize2 size={20} />
-          </button>
-        )}
+        {/* Reset button - always visible */}
+        <button
+          onClick={handleResetZoom}
+          className="w-10 h-10 bg-indigo-500 hover:bg-indigo-600 text-white rounded-lg shadow-lg hover:shadow-xl transition-all duration-300 flex items-center justify-center active:scale-95"
+          title="Fit all nodes in view"
+        >
+          <Maximize2 size={20} />
+        </button>
         <div className="text-center text-xs font-medium text-slate-600 dark:text-slate-400 bg-white dark:bg-slate-800 rounded-lg px-2 py-1 shadow-md">
           {Math.round(scale * 100)}%
         </div>

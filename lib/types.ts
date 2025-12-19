@@ -1,6 +1,6 @@
 export type TabType = 'tree' | 'search' | 'settings' | 'about';
 
-export type UserRole = 'viewer' | 'contributor' | 'editor' | 'co-admin' | 'admin';
+export type UserRole = 'viewer' | 'contributor' | 'co-admin' | 'admin';
 
 export interface Person {
   id: string;
@@ -138,7 +138,7 @@ export const canApprove = (role: UserRole): boolean => {
 };
 
 export const canEditDirectly = (role: UserRole): boolean => {
-  return role === 'editor' || role === 'co-admin' || role === 'admin';
+  return role === 'co-admin' || role === 'admin';
 };
 
 export const canManageUsers = (role: UserRole): boolean => {
@@ -146,12 +146,12 @@ export const canManageUsers = (role: UserRole): boolean => {
 };
 
 export const canSuggest = (role: UserRole): boolean => {
-  return role === 'contributor' || role === 'editor' || role === 'co-admin' || role === 'admin';
+  return role === 'contributor' || role === 'co-admin' || role === 'admin';
 };
 
 // Contributors can use add/edit/delete buttons but changes create suggestions
 export const canContribute = (role: UserRole): boolean => {
-  return role === 'contributor' || role === 'editor' || role === 'co-admin' || role === 'admin';
+  return role === 'contributor' || role === 'co-admin' || role === 'admin';
 };
 
 // Check if user needs approval for changes (contributors only)
@@ -163,7 +163,6 @@ export const getRoleLabel = (role: UserRole): string => {
   switch (role) {
     case 'viewer': return 'Viewer';
     case 'contributor': return 'Contributor';
-    case 'editor': return 'Editor';
     case 'co-admin': return 'Co-Admin';
     case 'admin': return 'Admin';
     default: return role;
@@ -174,7 +173,6 @@ export const getRoleDescription = (role: UserRole): string => {
   switch (role) {
     case 'viewer': return 'Can only view the tree';
     case 'contributor': return 'Can suggest changes (needs approval)';
-    case 'editor': return 'Can edit the tree directly';
     case 'co-admin': return 'Can edit + approve suggestions';
     case 'admin': return 'Full access + manage users';
     default: return '';

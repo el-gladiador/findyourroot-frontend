@@ -19,7 +19,7 @@ const PersonModal: React.FC<PersonModalProps> = ({ person, onClose, onEdit }) =>
   // Check if user owns this node or is admin
   const isOwner = person.created_by === user?.id;
   const isAdmin = user?.role === 'admin';
-  const canEdit = (user?.role === 'editor' && isOwner) || isAdmin;
+  const canEdit = (user?.role === 'co-admin' && isOwner) || isAdmin;
 
   // Prevent background scrolling when modal is open
   useEffect(() => {
@@ -31,10 +31,10 @@ const PersonModal: React.FC<PersonModalProps> = ({ person, onClose, onEdit }) =>
 
   const handleDelete = async () => {
     if (!canEdit) {
-      if (user?.role === 'editor') {
+      if (user?.role === 'co-admin') {
         setPermissionWarning('You can only delete nodes you created. This node was created by another user.');
       } else {
-        setPermissionWarning('You need Editor or Admin permissions to delete people from the tree.');
+        setPermissionWarning('You need Co-Admin or Admin permissions to delete people from the tree.');
       }
       setTimeout(() => setPermissionWarning(null), 4000);
       return;
@@ -47,10 +47,10 @@ const PersonModal: React.FC<PersonModalProps> = ({ person, onClose, onEdit }) =>
 
   const handleEditClick = () => {
     if (!canEdit) {
-      if (user?.role === 'editor') {
+      if (user?.role === 'co-admin') {
         setPermissionWarning('You can only edit nodes you created. This node was created by another user.');
       } else {
-        setPermissionWarning('You need Editor or Admin permissions to edit people in the tree.');
+        setPermissionWarning('You need Co-Admin or Admin permissions to edit people in the tree.');
       }
       setTimeout(() => setPermissionWarning(null), 4000);
       return;

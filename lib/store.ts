@@ -223,7 +223,7 @@ export const useAppStore = create<AppState>()(
           return { id: null, isSuggestion: true, message: response.error || 'Failed to submit suggestion' };
         }
         
-        // Editors and above can add directly
+        // Co-admins and above can add directly
         const response = await ApiClient.createPerson(person, parentId);
         
         if (response.data) {
@@ -252,7 +252,7 @@ export const useAppStore = create<AppState>()(
           return { success: false, isSuggestion: true, message: response.error || 'Failed to submit suggestion' };
         }
         
-        // Editors and above can delete directly
+        // Co-admins and above can delete directly
         const response = await ApiClient.deletePerson(id);
         
         if (!response.error) {
@@ -289,7 +289,7 @@ export const useAppStore = create<AppState>()(
           return { success: false, isSuggestion: true, message: response.error || 'Failed to submit suggestion' };
         }
         
-        // Editors and above can update directly
+        // Co-admins and above can update directly
         const response = await ApiClient.updatePerson(id, updates);
         
         if (response.data) {

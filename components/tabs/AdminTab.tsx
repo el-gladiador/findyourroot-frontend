@@ -238,8 +238,6 @@ const AdminTab = () => {
         return 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300';
       case 'co-admin':
         return 'bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300';
-      case 'editor':
-        return 'bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300';
       case 'contributor':
         return 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300';
       default:
@@ -316,7 +314,7 @@ const AdminTab = () => {
   const linkTargetUser = linkUserId ? users.find(u => u.id === linkUserId) : null;
 
   // Roles list for role modal
-  const rolesList: UserRole[] = ['viewer', 'contributor', 'editor', 'co-admin', 'admin'];
+  const rolesList: UserRole[] = ['viewer', 'contributor', 'co-admin', 'admin'];
 
   return (
     <div className="pb-32 pt-4 px-4">

@@ -16,7 +16,7 @@ import {
 import { useI18n, LANGUAGES, Language } from '@/lib/i18n';
 
 // Role hierarchy for determining upgrade options
-const ROLE_HIERARCHY: UserRole[] = ['viewer', 'contributor', 'editor', 'co-admin', 'admin'];
+const ROLE_HIERARCHY: UserRole[] = ['viewer', 'contributor', 'co-admin', 'admin'];
 
 const SettingsTab = () => {
   const { t, language, setLanguage } = useI18n();
@@ -354,7 +354,6 @@ const SettingsTab = () => {
                   <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">
                     {user?.role === 'admin' && 'Admin (Full Access)'}
                     {user?.role === 'co-admin' && 'Co-Admin (Can approve)'}
-                    {user?.role === 'editor' && 'Editor (Can edit)'}
                     {user?.role === 'contributor' && 'Contributor (Can suggest)'}
                     {user?.role === 'viewer' && 'Viewer (View only)'}
                     {!user?.role && 'Viewer (View only)'}
