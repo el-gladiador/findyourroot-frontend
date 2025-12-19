@@ -55,10 +55,20 @@ const AboutTab = () => {
       </div>
 
       <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-900/50">
-        <h3 className="font-bold text-lg text-indigo-900 dark:text-white mb-2">Why I Built This App</h3>
-        <p className="text-indigo-800 dark:text-indigo-200 text-sm leading-relaxed">
-          I always wanted a digital version of our family tree that everyone could view and contribute to. This app helps preserve the memories and stories of past generations and pass them on to future generations. Hope you enjoy it! 🌳
-        </p>
+        <h3 className="font-bold text-lg text-indigo-900 dark:text-white mb-3">Tech Stack & Security</h3>
+        <div className="space-y-3 text-sm">
+          <p className="text-indigo-800 dark:text-indigo-200 leading-relaxed">
+            <strong>Frontend:</strong> Next.js 14, React, TypeScript, Tailwind CSS<br />
+            <strong>Backend:</strong> Go (Golang) with Cloud Firestore<br />
+            <strong>Infrastructure:</strong> Cloud-native architecture, PWA support
+          </p>
+          <p className="text-indigo-800 dark:text-indigo-200 leading-relaxed">
+            <strong>Security:</strong> JWT authentication, bcrypt password hashing, role-based access control (RBAC), secure API endpoints, and data validation at every layer.
+          </p>
+          <p className="text-indigo-800 dark:text-indigo-200 leading-relaxed font-medium">
+            🌟 This project is open source! Contributions, bug reports, and feature suggestions are welcome on GitHub.
+          </p>
+        </div>
       </div>
     </div>
   );

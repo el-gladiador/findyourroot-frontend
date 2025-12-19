@@ -85,7 +85,7 @@ export const FAMILY_DATA: Person[] = [
 
 export const CREATOR_INFO: CreatorInfo = {
   name: "Zaki Amiri",
-  role: "Software & Cloud Engineer",
+  role: "Software Engineer • Cloud Solution Architect",
   bio: "I always wanted to create a digital version of our family tree that everyone could access and contribute to. Growing up, I heard so many stories about our ancestors, but they were scattered across different people's memories. This app is my way of bringing all those stories together in one beautiful, interactive place that our whole family can enjoy and build upon together.",
   socials: {
     instagram: "_zaki.amiri_",
