@@ -210,6 +210,7 @@ export class ApiClient {
     person_data?: {
       name: string;
       role: string;
+      gender?: string;
       birth: string;
       location: string;
       avatar?: string;

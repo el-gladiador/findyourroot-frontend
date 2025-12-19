@@ -209,6 +209,7 @@ export const useAppStore = create<AppState>()(
             person_data: {
               name: person.name,
               role: person.role,
+              gender: person.gender || '',
               birth: person.birth,
               location: person.location || '',
               avatar: person.avatar,

@@ -153,6 +153,7 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSu
     const result = await addPerson({
       name: formData.name,
       role: role,
+      gender: gender === 'unknown' ? '' : gender,
       birth: formData.birth,
       avatar: avatar,
       children: relationType === 'father' && linkedPersonId ? [linkedPersonId] : [],
@@ -193,6 +194,7 @@ const AddPersonModal: React.FC<AddPersonModalProps> = ({ onClose, parentId, onSu
     const result = await addPerson({
       name: formData.name,
       role: role,
+      gender: gender === 'unknown' ? '' : gender,
       birth: formData.birth,
       avatar: avatar,
       children: relationType === 'father' && linkedPersonId ? [linkedPersonId] : [],

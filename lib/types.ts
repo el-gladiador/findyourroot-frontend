@@ -6,6 +6,7 @@ export interface Person {
   id: string;
   name: string;
   role: string;
+  gender?: string; // "male", "female", or empty
   birth: string;
   location?: string; // Legacy, optional
   avatar: string;
