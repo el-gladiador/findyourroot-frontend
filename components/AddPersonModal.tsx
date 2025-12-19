@@ -31,7 +31,7 @@ const generateGenderAvatar = (name: string, gender: Gender): string => {
   if (gender === 'male') {
     return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodedName}&backgroundColor=b6e3f4&facialHairProbability=50`;
   } else if (gender === 'female') {
-    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodedName}&backgroundColor=ffdfbf&facialHairProbability=0&top=longHair,hat`;
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodedName}&backgroundColor=ffdfbf&facialHairProbability=0&top=bigHair,bob,bun,curly,curvy,dreads,frida,longButNotTooLong,miaWallace,straight01,straight02`;
   }
   return `https://api.dicebear.com/7.x/avataaars/svg?seed=${encodedName}&backgroundColor=c0aede`;
 };
