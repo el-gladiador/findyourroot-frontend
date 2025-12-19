@@ -80,7 +80,7 @@ const translations: Record<Language, Record<string, string>> = {
     'settings.adminFullAccess': 'Admin (Full Access)',
     'settings.coAdminCanApprove': 'Co-Admin (Can approve)',
     'settings.contributorCanSuggest': 'Contributor (Can suggest)',
-    'settings.viewerViewOnly': 'Viewer (View only),
+    'settings.viewerViewOnly': 'Viewer (View only)',
     'settings.myTreeIdentity': 'My Tree Identity',
     'settings.claimMyIdentity': 'Claim My Identity',
     'settings.linkedAs': 'Linked as',
