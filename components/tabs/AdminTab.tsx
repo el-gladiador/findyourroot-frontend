@@ -338,7 +338,7 @@ const AdminTab = () => {
             onClick={() => setActiveTab('suggestions')}
             className={`relative flex-1 px-3 py-2 rounded-md text-xs font-medium transition-colors flex items-center justify-center gap-1.5 whitespace-nowrap ${
               activeTab === 'suggestions'
-                ? 'bg-green-600 text-white'
+                ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
                 : 'text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
             }`}
           >
