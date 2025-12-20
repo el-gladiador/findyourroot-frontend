@@ -85,8 +85,16 @@ const AdminTab = () => {
   // Populate Tree modal state (admin only)
   const [showPopulateModal, setShowPopulateModal] = useState(false);
   const [populateText, setPopulateText] = useState('');
+  const [populateTreeName, setPopulateTreeName] = useState('');
   const [isPopulating, setIsPopulating] = useState(false);
   const [populateResult, setPopulateResult] = useState<{ success: boolean; message: string; count?: number } | null>(null);
+  
+  // Tree name state
+  const treeName = useAppStore((state) => state.treeName);
+  const updateTreeName = useAppStore((state) => state.updateTreeName);
+  const [editingTreeName, setEditingTreeName] = useState(false);
+  const [newTreeName, setNewTreeName] = useState('');
+  const [isSavingTreeName, setIsSavingTreeName] = useState(false);
   
   // Get family data for person selection
   const familyData = useAppStore((state) => state.familyData);
@@ -296,6 +304,17 @@ const AdminTab = () => {
     }
   };
 
+  // Handle tree name save
+  const handleSaveTreeName = async () => {
+    if (!newTreeName.trim()) return;
+    setIsSavingTreeName(true);
+    const result = await updateTreeName(newTreeName.trim());
+    setIsSavingTreeName(false);
+    if (result.success) {
+      setEditingTreeName(false);
+    }
+  };
+
   // Filter unlinked persons for linking
   const unlinkedPersons = familyData.filter(
     (p) => !p.linked_user_id && p.name.toLowerCase().includes(linkPersonSearch.toLowerCase())
@@ -330,6 +349,55 @@ const AdminTab = () => {
           </div>
         </div>
       </div>
+
+      {/* Tree Name Setting (Admin only) */}
+      {isAdmin && (
+        <div className="mb-4 p-3 bg-white dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-700">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500 dark:text-slate-400">Tree Name:</span>
+              {editingTreeName ? (
+                <input
+                  type="text"
+                  value={newTreeName}
+                  onChange={(e) => setNewTreeName(e.target.value)}
+                  placeholder="Enter tree name"
+                  className="px-2 py-1 text-sm border border-slate-300 dark:border-slate-600 rounded bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
+                  autoFocus
+                />
+              ) : (
+                <span className="text-sm font-medium text-slate-800 dark:text-white">{treeName}</span>
+              )}
+            </div>
+            <div className="flex items-center gap-2">
+              {editingTreeName ? (
+                <>
+                  <button
+                    onClick={handleSaveTreeName}
+                    disabled={isSavingTreeName || !newTreeName.trim()}
+                    className="px-2 py-1 text-xs bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50"
+                  >
+                    {isSavingTreeName ? 'Saving...' : 'Save'}
+                  </button>
+                  <button
+                    onClick={() => { setEditingTreeName(false); setNewTreeName(''); }}
+                    className="px-2 py-1 text-xs text-slate-600 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => { setEditingTreeName(true); setNewTreeName(treeName); }}
+                  className="p-1 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                >
+                  <Edit3 size={14} />
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main Tab Selector */}
       <div className="flex gap-1 mb-4 bg-white dark:bg-slate-800 p-1 rounded-lg border border-slate-100 dark:border-slate-700 overflow-x-auto">
@@ -1054,11 +1122,26 @@ const AdminTab = () => {
                 Populate Tree from Text
               </h3>
               <button
-                onClick={() => { setShowPopulateModal(false); setPopulateText(''); setPopulateResult(null); }}
+                onClick={() => { setShowPopulateModal(false); setPopulateText(''); setPopulateTreeName(''); setPopulateResult(null); }}
                 className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-slate-300"
               >
                 <XCircle size={16} />
               </button>
+            </div>
+
+            {/* Tree Name Input (Required) */}
+            <div className="mb-3">
+              <label className="block text-xs font-medium text-slate-700 dark:text-slate-300 mb-1">
+                Tree Name <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={populateTreeName}
+                onChange={(e) => setPopulateTreeName(e.target.value)}
+                placeholder="e.g., Batur, Smith Family..."
+                className="w-full px-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none text-slate-900 dark:text-white"
+              />
+              <p className="text-[10px] text-slate-400 mt-1">This name will be used for user registration and page title</p>
             </div>
 
             <p className="text-xs text-slate-500 dark:text-slate-400 mb-3">
@@ -1103,32 +1186,35 @@ Grandmother`}
             {/* Actions */}
             <div className="flex gap-2 mt-3">
               <button
-                onClick={() => { setShowPopulateModal(false); setPopulateText(''); setPopulateResult(null); }}
+                onClick={() => { setShowPopulateModal(false); setPopulateText(''); setPopulateTreeName(''); setPopulateResult(null); }}
                 className="flex-1 px-3 py-2 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg text-xs font-medium hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={async () => {
-                  if (!populateText.trim()) return;
+                  if (!populateText.trim() || !populateTreeName.trim()) return;
                   setIsPopulating(true);
                   setPopulateResult(null);
                   
-                  const response = await ApiClient.populateTreeFromText(populateText);
+                  const response = await ApiClient.populateTreeFromText(populateText, populateTreeName.trim());
                   
                   if (response.error) {
                     setPopulateResult({ success: false, message: response.error });
                   } else if (response.data) {
                     setPopulateResult({ 
                       success: true, 
-                      message: 'Tree populated successfully!',
+                      message: `Tree "${populateTreeName}" populated successfully!`,
                       count: response.data.created_count
                     });
                     setPopulateText('');
+                    setPopulateTreeName('');
+                    // Update the store with the new tree name
+                    updateTreeName(response.data.tree_name);
                   }
                   setIsPopulating(false);
                 }}
-                disabled={isPopulating || !populateText.trim()}
+                disabled={isPopulating || !populateText.trim() || !populateTreeName.trim()}
                 className="flex-1 px-3 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
               >
                 {isPopulating ? (

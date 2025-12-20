@@ -14,6 +14,11 @@ interface AppState {
   validateAuth: () => Promise<boolean>;
   refreshUser: () => Promise<void>;
   
+  // Tree settings
+  treeName: string;
+  fetchTreeSettings: () => Promise<void>;
+  updateTreeName: (name: string) => Promise<{ success: boolean; error?: string }>;
+  
   // App state
   currentTab: TabType;
   setCurrentTab: (tab: TabType) => void;
@@ -60,6 +65,25 @@ export const useAppStore = create<AppState>()(
       user: null,
       token: null,
       
+      // Tree settings
+      treeName: 'Family Tree',
+      
+      fetchTreeSettings: async () => {
+        const response = await ApiClient.getTreeSettings();
+        if (response.data) {
+          set({ treeName: response.data.tree_name });
+        }
+      },
+      
+      updateTreeName: async (name: string) => {
+        const response = await ApiClient.updateTreeSettings(name);
+        if (response.data) {
+          set({ treeName: response.data.tree_name });
+          return { success: true };
+        }
+        return { success: false, error: response.error || 'Failed to update tree name' };
+      },
+      
       login: async (email: string, password: string) => {
         const response = await ApiClient.login(email, password);
         
@@ -72,7 +96,8 @@ export const useAppStore = create<AppState>()(
             token,
           });
           
-          // Fetch family data after successful login
+          // Fetch family data and tree settings after successful login
+          await get().fetchTreeSettings();
           await get().fetchFamilyData();
           
           return { success: true };
@@ -136,7 +161,8 @@ export const useAppStore = create<AppState>()(
             token,
           });
           
-          // Fetch family data after validation
+          // Fetch family data and tree settings after validation
+          await get().fetchTreeSettings();
           await get().fetchFamilyData();
           
           return true;

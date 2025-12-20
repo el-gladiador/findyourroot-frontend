@@ -298,10 +298,25 @@ export class ApiClient {
   }
 
   // Populate tree from indentation-based text (admin only)
-  static async populateTreeFromText(text: string): Promise<ApiResponse<{ created_count: number; people: any[] }>> {
+  static async populateTreeFromText(text: string, treeName: string): Promise<ApiResponse<{ created_count: number; people: any[]; tree_name: string }>> {
     return this.request('/api/v1/tree/populate', {
       method: 'POST',
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, tree_name: treeName }),
+    });
+  }
+
+  // Get tree settings (public)
+  static async getTreeSettings(): Promise<ApiResponse<{ tree_name: string }>> {
+    return this.request('/api/v1/tree/settings', {
+      method: 'GET',
+    });
+  }
+
+  // Update tree settings (admin only)
+  static async updateTreeSettings(treeName: string): Promise<ApiResponse<{ tree_name: string }>> {
+    return this.request('/api/v1/tree/settings', {
+      method: 'PUT',
+      body: JSON.stringify({ tree_name: treeName }),
     });
   }
 

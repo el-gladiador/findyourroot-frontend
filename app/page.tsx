@@ -28,6 +28,7 @@ export default function App() {
   const validateAuth = useAppStore((state) => state.validateAuth);
   const settings = useAppStore((state) => state.settings);
   const user = useAppStore((state) => state.user);
+  const treeName = useAppStore((state) => state.treeName);
   
   // Enable real-time sync (Firestore listeners or polling)
   useRealtimeSync();
@@ -112,7 +113,7 @@ export default function App() {
 
   const getTitle = () => {
     switch(activeTab) {
-      case 'home': return user?.tree_name ? `The ${user.tree_name} Line` : 'Family Tree';
+      case 'home': return treeName ? `The ${treeName} Line` : 'Family Tree';
       case 'search': return 'Find Relative';
       case 'admin': return user?.role === 'admin' ? 'Admin Panel' : 'Review Panel';
       case 'config': return 'Configuration';
