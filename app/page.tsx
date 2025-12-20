@@ -112,7 +112,7 @@ export default function App() {
 
   const getTitle = () => {
     switch(activeTab) {
-      case 'home': return 'The Pendelton Line';
+      case 'home': return user?.tree_name ? `The ${user.tree_name} Line` : 'Family Tree';
       case 'search': return 'Find Relative';
       case 'admin': return user?.role === 'admin' ? 'Admin Panel' : 'Review Panel';
       case 'config': return 'Configuration';
